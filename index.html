@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Character Profile Editor</title>
+    <script type="importmap">
+        {
+            "imports": {
+                "pako": "https://cdn.jsdelivr.net/npm/pako@2.1.0/+esm",
+                "png-chunks-extract": "https://cdn.jsdelivr.net/npm/png-chunks-extract@1.0.0/+esm",
+                "png-chunks-encode": "https://cdn.jsdelivr.net/npm/png-chunks-encode@1.0.0/+esm",
+                "bootstrap": "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2980b9;
+            --appearance-color: #3498db;
+            --backstory-color: #9b59b6;
+            --relationships-color: #2ecc71;
+            --personality-color: #f1c40f;
+            --intimacy-color: #e74c3c;
+            --dialogue-color: #1abc9c;
+            --notes-color: #95a5a6;
+            --bg-color: #ffffff;
+            --text-color: #333333;
+            --card-bg: #ffffff;
+            --input-bg: #ffffff;
+            --input-border: #ced4da;
+            --input-text-color: #333333;
+        }
+
+        .dark-theme {
+            --primary-color: #2980b9;
+            --secondary-color: #3498db;
+            --appearance-color: #2980b9;
+            --backstory-color: #8e44ad;
+            --relationships-color: #27ae60;
+            --personality-color: #f39c12;
+            --intimacy-color: #c0392b;
+            --dialogue-color: #16a085;
+            --notes-color: #7f8c8d;
+            --bg-color: #121212;
+            --text-color: #f0f0f0;
+            --card-bg: #1e1e1e;
+            --input-bg: #2d2d2d;
+            --input-border: #444;
+            --input-text-color: #f0f0f0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding-top: 20px;
+            padding-bottom: 20px;
+            min-height: 100vh;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            transition: background-color 0.3s;
+        }
+
+        .form-control, .form-select {
+            background-color: var(--input-bg);
+            color: var(--input-text-color);
+            border-color: var(--input-border);
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+        }
+
+        .accordion {
+            margin-bottom: 20px;
+        }
+
+        .accordion-button:not(.collapsed) {
+            color: white;
+        }
+
+        .section-appearance .accordion-button:not(.collapsed) {
+            background-color: var(--appearance-color);
+        }
+
+        .section-backstory .accordion-button:not(.collapsed) {
+            background-color: var(--backstory-color);
+        }
+
+        .section-relationships .accordion-button:not(.collapsed) {
+            background-color: var(--relationships-color);
+        }
+
+        .section-personality .accordion-button:not(.collapsed) {
+            background-color: var(--personality-color);
+        }
+
+        .section-intimacy .accordion-button:not(.collapsed) {
+            background-color: var(--intimacy-color);
+        }
+
+        .section-dialogue .accordion-button:not(.collapsed) {
+            background-color: var(--dialogue-color);
+        }
+
+        .section-notes .accordion-button:not(.collapsed) {
+            background-color: var(--notes-color);
+        }
+
+        .text-preview {
+            white-space: pre-wrap;
+            font-family: monospace;
+            border: 1px solid var(--input-border);
+            padding: 10px;
+            border-radius: 5px;
+            background-color: var(--input-bg);
+            max-height: 300px;
+            overflow-y: auto;
+            transition: all 0.3s;
+            color: var(--input-text-color);
+        }
+
+        .avatar-container {
+            position: relative;
+            width: 150px;
+            height: 150px;
+            margin: 0 auto 20px;
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .avatar-container:hover {
+            border-color: var(--primary-color);
+        }
+
+        .avatar-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: cover;
+        }
+
+        .avatar-placeholder {
+            text-align: center;
+            color: #999;
+            font-size: 0.9em;
+            padding: 20px;
+        }
+
+        .trait-button {
+            margin: 2px;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .trait-button.selected {
+            transform: scale(0.95);
+            opacity: 0.8;
+        }
+
+        .trait-chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.5rem;
+            margin: 0.2rem;
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 16px;
+            font-size: 0.8rem;
+        }
+
+        .trait-chip button {
+            background: none;
+            border: none;
+            color: white;
+            margin-left: 0.3rem;
+            cursor: pointer;
+            font-size: 0.8rem;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .token-counter {
+            position: absolute;
+            right: 15px;
+            top: 10px;
+            background: rgba(0, 0, 0, 0.1);
+            padding: 3px 6px;
+            border-radius: 3px;
+            font-size: 0.8em;
+        }
+
+        .dark-theme .token-counter {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .tab-content {
+            padding: 15px 0;
+        }
+
+        .history-buttons {
+            margin-left: 10px;
+        }
+
+        .collapse-icon {
+            transition: transform 0.3s;
+        }
+
+        .collapsed .collapse-icon {
+            transform: rotate(-90deg);
+        }
+
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1100;
+        }
+
+        .progress {
+            height: 5px;
+        }
+
+        .progress-bar {
+            transition: width 1s linear;
+        }
+
+        .offline-message {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: #ff5733;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            z-index: 1100;
+            display: none;
+        }
+
+        .js-fallback {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .js-fallback.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-message" id="offlineMessage">
+        <strong>Warning:</strong> You appear to be offline. Some features may not work correctly.
+    </div>
+
+    <div class="container" id="mainContainer">
+        <div class="js-fallback" id="jsFallback">
+            <h4>JavaScript Error</h4>
+            <p>Some JavaScript libraries failed to load. Basic editor functionality will work, but PNG import/export features will be unavailable.</p>
+            <p>Please check your internet connection and try again.</p>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Character Profile Editor</h1>
+            <div class="d-flex">
+                <div class="form-check form-switch me-3">
+                    <input class="form-check-input" type="checkbox" id="themeToggle">
+                    <label class="form-check-label" for="themeToggle">Dark Mode</label>
+                </div>
+                <button class="btn btn-sm btn-primary history-buttons" id="undoBtn" disabled>
+                    <i class="bi bi-arrow-counterclockwise"></i> Undo
+                </button>
+                <button class="btn btn-sm btn-secondary history-buttons ms-2" id="redoBtn" disabled>
+                    <i class="bi bi-arrow-clockwise"></i> Redo
+                </button>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card mb-3">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Character Avatar</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="avatar-container" id="avatarContainer">
+                            <div class="avatar-placeholder">Drag & Drop or Click to Upload Image</div>
+                        </div>
+                        <input type="file" id="imageInput" accept="image/*" style="display: none;">
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Import/Export</h5>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-success w-100 mb-2" id="exportBtn">Export as PNG Card</button>
+                        <button class="btn btn-info w-100" id="importBtn">Import PNG Card</button>
+                        <input type="file" id="importInput" accept=".png" style="display: none;">
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Personality Assistant</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="selectedTraits" class="mb-3"></div>
+                        <div style="max-height: 300px; overflow-y: auto;">
+                            <div class="mb-2">
+                                <h6>Positive Traits</h6>
+                                <div class="d-flex flex-wrap">
+                                    <button class="btn btn-sm btn-outline-success trait-button" data-trait="kind">Kind</button>
+                                    <button class="btn btn-sm btn-outline-success trait-button" data-trait="compassionate">Compassionate</button>
+                                    <button class="btn btn-sm btn-outline-success trait-button" data-trait="empathic">Empathic</button>
+                                    <button class="btn btn-sm btn-outline-success trait-button" data-trait="patient">Patient</button>
+                                    <button class="btn btn-sm btn-outline-success trait-button" data-trait="optimistic">Optimistic</button>
+                                    <button class="btn btn-sm btn-outline-success trait-button" data-trait="cheerful">Cheerful</button>
+                                    <button class="btn btn-sm btn-outline-success trait-button" data-trait="humble">Humble</button>
+                                    <button class="btn btn-sm btn-outline-success trait-button" data-trait="generous">Generous</button>
+                                    <button class="btn btn-sm btn-outline-success trait-button" data-trait="loyal">Loyal</button>
+                                    <button class="btn btn-sm btn-outline-success trait-button" data-trait="honest">Honest</button>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <h6>Negative Traits</h6>
+                                <div class="d-flex flex-wrap">
+                                    <button class="btn btn-sm btn-outline-danger trait-button" data-trait="arrogant">Arrogant</button>
+                                    <button class="btn btn-sm btn-outline-danger trait-button" data-trait="impulsive">Impulsive</button>
+                                    <button class="btn btn-sm btn-outline-danger trait-button" data-trait="stubborn">Stubborn</button>
+                                    <button class="btn btn-sm btn-outline-danger trait-button" data-trait="vain">Vain</button>
+                                    <button class="btn btn-sm btn-outline-danger trait-button" data-trait="jealous">Jealous</button>
+                                    <button class="btn btn-sm btn-outline-danger trait-button" data-trait="pessimistic">Pessimistic</button>
+                                    <button class="btn btn-sm btn-outline-danger trait-button" data-trait="selfish">Selfish</button>
+                                    <button class="btn btn-sm btn-outline-danger trait-button" data-trait="manipulative">Manipulative</button>
+                                    <button class="btn btn-sm btn-outline-danger trait-button" data-trait="hostile">Hostile</button>
+                                    <button class="btn btn-sm btn-outline-danger trait-button" data-trait="moody">Moody</button>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <h6>Neutral Traits</h6>
+                                <div class="d-flex flex-wrap">
+                                    <button class="btn btn-sm btn-outline-secondary trait-button" data-trait="reserved">Reserved</button>
+                                    <button class="btn btn-sm btn-outline-secondary trait-button" data-trait="stoic">Stoic</button>
+                                    <button class="btn btn-sm btn-outline-secondary trait-button" data-trait="pragmatic">Pragmatic</button>
+                                    <button class="btn btn-sm btn-outline-secondary trait-button" data-trait="logical">Logical</button>
+                                    <button class="btn btn-sm btn-outline-secondary trait-button" data-trait="curious">Curious</button>
+                                    <button class="btn btn-sm btn-outline-secondary trait-button" data-trait="independent">Independent</button>
+                                    <button class="btn btn-sm btn-outline-secondary trait-button" data-trait="ambitious">Ambitious</button>
+                                    <button class="btn btn-sm btn-outline-secondary trait-button" data-trait="disciplined">Disciplined</button>
+                                    <button class="btn btn-sm btn-outline-secondary trait-button" data-trait="perfectionist">Perfectionist</button>
+                                    <button class="btn btn-sm btn-outline-secondary trait-button" data-trait="competitive">Competitive</button>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <h6>Romantic Traits</h6>
+                                <div class="d-flex flex-wrap">
+                                    <button class="btn btn-sm btn-outline-warning trait-button" data-trait="flirtatious">Flirtatious</button>
+                                    <button class="btn btn-sm btn-outline-warning trait-button" data-trait="affectionate">Affectionate</button>
+                                    <button class="btn btn-sm btn-outline-warning trait-button" data-trait="passionate">Passionate</button>
+                                    <button class="btn btn-sm btn-outline-warning trait-button" data-trait="possessive">Possessive</button>
+                                    <button class="btn btn-sm btn-outline-warning trait-button" data-trait="playful">Playful</button>
+                                    <button class="btn btn-sm btn-outline-warning trait-button" data-trait="romantic">Romantic</button>
+                                    <button class="btn btn-sm btn-outline-warning trait-button" data-trait="seductive">Seductive</button>
+                                    <button class="btn btn-sm btn-outline-warning trait-button" data-trait="dominant">Dominant</button>
+                                    <button class="btn btn-sm btn-outline-warning trait-button" data-trait="submissive">Submissive</button>
+                                    <button class="btn btn-sm btn-outline-warning trait-button" data-trait="teasing">Teasing</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <ul class="nav nav-tabs" id="editorTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="editor-tab" data-bs-toggle="tab" data-bs-target="#editor" type="button" role="tab">Editor</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="preview-tab" data-bs-toggle="tab" data-bs-target="#preview" type="button" role="tab">JSON Preview</button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="editorTabsContent">
+                    <div class="tab-pane fade show active" id="editor" role="tabpanel">
+                        <div class="accordion" id="characterAccordion">
+                            <!-- Basic Info Section -->
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#basicInfo">
+                                        <i class="bi bi-info-circle me-2 collapse-icon"></i> Basic Information
+                                    </button>
+                                </h2>
+                                <div id="basicInfo" class="accordion-collapse collapse" data-bs-parent="#characterAccordion">
+                                    <div class="accordion-body">
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label for="characterName" class="form-label">Character Name</label>
+                                                <input type="text" class="form-control" id="characterName">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="aliases" class="form-label">Aliases</label>
+                                                <input type="text" class="form-control" id="aliases" placeholder="Comma-separated list">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label for="species" class="form-label">Species</label>
+                                                <input type="text" class="form-control" id="species">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label for="nationality" class="form-label">Nationality</label>
+                                                <input type="text" class="form-control" id="nationality">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label for="ethnicity" class="form-label">Ethnicity</label>
+                                                <input type="text" class="form-control" id="ethnicity">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label for="age" class="form-label">Age</label>
+                                                <input type="text" class="form-control" id="age">
+                                            </div>
+                                            <div class="col-md-8">
+                                                <label for="occupation" class="form-label">Occupation/Role</label>
+                                                <input type="text" class="form-control" id="occupation">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Appearance Section -->
+                            <div class="accordion-item section-appearance">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#appearance">
+                                        <i class="bi bi-person-video3 me-2 collapse-icon"></i> Appearance
+                                    </button>
+                                </h2>
+                                <div id="appearance" class="accordion-collapse collapse" data-bs-parent="#characterAccordion">
+                                    <div class="accordion-body">
+                                        <div class="mb-3">
+                                            <label for="appearanceDesc" class="form-label">Physical Description</label>
+                                            <textarea class="form-control" id="appearanceDesc" rows="4"></textarea>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="scent" class="form-label">Scent</label>
+                                            <input type="text" class="form-control" id="scent">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="clothing" class="form-label">Clothing</label>
+                                            <textarea class="form-control" id="clothing" rows="3"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Backstory Section -->
+                            <div class="accordion-item section-backstory">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#backstory">
+                                        <i class="bi bi-book me-2 collapse-icon"></i> Backstory
+                                    </button>
+                                </h2>
+                                <div id="backstory" class="accordion-collapse collapse" data-bs-parent="#characterAccordion">
+                                    <div class="accordion-body">
+                                        <div class="mb-3">
+                                            <label for="backstoryText" class="form-label">Backstory</label>
+                                            <textarea class="form-control" id="backstoryText" rows="5"></textarea>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="currentResidence" class="form-label">Current Residence</label>
+                                            <input type="text" class="form-control" id="currentResidence">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Relationships Section -->
+                            <div class="accordion-item section-relationships">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#relationships">
+                                        <i class="bi bi-people me-2 collapse-icon"></i> Relationships
+                                    </button>
+                                </h2>
+                                <div id="relationships" class="accordion-collapse collapse" data-bs-parent="#characterAccordion">
+                                    <div class="accordion-body">
+                                        <div class="mb-3">
+                                            <label for="relationshipsText" class="form-label">Relationships (one per line)</label>
+                                            <textarea class="form-control" id="relationshipsText" rows="6" placeholder="Format: Name - Relationship"></textarea>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="npcsText" class="form-label">NPCs / Side Characters</label>
+                                            <textarea class="form-control" id="npcsText" rows="6" placeholder="Format: &lt;Name, hair color, eye color, traits, role&gt;..."></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Personality Section -->
+                            <div class="accordion-item section-personality">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#personality">
+                                        <i class="bi bi-person-lines-fill me-2 collapse-icon"></i> Personality
+                                    </button>
+                                </h2>
+                                <div id="personality" class="accordion-collapse collapse" data-bs-parent="#characterAccordion">
+                                    <div class="accordion-body">
+                                        <div class="mb-3">
+                                            <label for="traitsList" class="form-label">Traits</label>
+                                            <input type="text" class="form-control" id="traitsList" placeholder="Comma-separated list of traits">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="personalityDesc" class="form-label">Personality Description</label>
+                                            <textarea class="form-control" id="personalityDesc" rows="6"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Intimacy Section -->
+                            <div class="accordion-item section-intimacy">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#intimacy">
+                                        <i class="bi bi-heart me-2 collapse-icon"></i> Intimacy
+                                    </button>
+                                </h2>
+                                <div id="intimacy" class="accordion-collapse collapse" data-bs-parent="#characterAccordion">
+                                    <div class="accordion-body">
+                                        <div class="mb-3">
+                                            <label for="intimacyDesc" class="form-label">Intimacy Preferences</label>
+                                            <textarea class="form-control" id="intimacyDesc" rows="6"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Dialogue Section -->
+                            <div class="accordion-item section-dialogue">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#dialogue">
+                                        <i class="bi bi-chat-square-quote me-2 collapse-icon"></i> Dialogue
+                                    </button>
+                                </h2>
+                                <div id="dialogue" class="accordion-collapse collapse" data-bs-parent="#characterAccordion">
+                                    <div class="accordion-body">
+                                        <div class="mb-3">
+                                            <label for="dialogueSamples" class="form-label">Dialogue Samples (one per line)</label>
+                                            <textarea class="form-control" id="dialogueSamples" rows="6" placeholder="Example: *laughs softly* I suppose you're right..."></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Notes Section -->
+                            <div class="accordion-item section-notes">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#notes">
+                                        <i class="bi bi-journal-text me-2 collapse-icon"></i> Notes
+                                    </button>
+                                </h2>
+                                <div id="notes" class="accordion-collapse collapse" data-bs-parent="#characterAccordion">
+                                    <div class="accordion-body">
+                                        <div class="mb-3">
+                                            <label for="notesText" class="form-label">Additional Notes</label>
+                                            <textarea class="form-control" id="notesText" rows="5"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="preview" role="tabpanel">
+                        <div class="position-relative">
+                            <div class="text-preview" id="jsonPreview"></div>
+                            <div class="token-counter" id="tokenCounter">0 tokens</div>
+                        </div>
+                        <button class="btn btn-primary mt-3" id="copyJsonBtn">
+                            <i class="bi bi-clipboard"></i> Copy JSON
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Check offline status
+            const offlineMessage = document.getElementById('offlineMessage');
+            if (!navigator.onLine) {
+                offlineMessage.style.display = 'block';
+            }
+            
+            window.addEventListener('online', () => {
+                offlineMessage.style.display = 'none';
+            });
+            
+            window.addEventListener('offline', () => {
+                offlineMessage.style.display = 'block';
+            });
+
+            // UI Elements
+            const avatarContainer = document.getElementById('avatarContainer');
+            const imageInput = document.getElementById('imageInput');
+            const importInput = document.getElementById('importInput');
+            const jsonPreview = document.getElementById('jsonPreview');
+            const tokenCounter = document.getElementById('tokenCounter');
+            const copyJsonBtn = document.getElementById('copyJsonBtn');
+            const exportBtn = document.getElementById('exportBtn');
+            const importBtn = document.getElementById('importBtn');
+            const themeToggle = document.getElementById('themeToggle');
+            const undoBtn = document.getElementById('undoBtn');
+            const redoBtn = document.getElementById('redoBtn');
+            const traitsList = document.getElementById('traitsList');
+            const selectedTraitsContainer = document.getElementById('selectedTraits');
+            const jsFallback = document.getElementById('jsFallback');
+            
+            // Personality traits
+            const traitButtons = document.querySelectorAll('.trait-button');
+            const selectedTraits = new Set();
+
+            // History tracking
+            let history = [];
+            let historyIndex = -1;
+            let isReverting = false;
+
+            // Try loading external libraries
+            let pako, PNGChunksExtract, PNGChunksEncode, bootstrap;
+            let librariesLoaded = false;
+
+            // Create a fallback mode if libraries fail to load
+            try {
+                pako = await import('pako');
+                PNGChunksExtract = await import('png-chunks-extract');
+                PNGChunksEncode = await import('png-chunks-encode');
+                bootstrap = await import('bootstrap');
+                librariesLoaded = true;
+            } catch (error) {
+                console.error('Failed to load some dependencies:', error);
+                jsFallback.classList.add('show');
+            }
+
+            // Initialize theme
+            initTheme();
+
+            // Initial load
+            loadFromStorage();
+            updateSelectedTraitsDisplay();
+
+            // Event Listeners
+            avatarContainer.addEventListener('click', () => imageInput.click());
+            imageInput.addEventListener('change', handleImageUpload);
+            avatarContainer.addEventListener('dragover', handleDragOver);
+            avatarContainer.addEventListener('drop', handleDrop);
+            
+            if (librariesLoaded) {
+                importBtn.addEventListener('click', () => importInput.click());
+                exportBtn.addEventListener('click', exportToPNG);
+                importInput.addEventListener('change', importFromPNG);
+            } else {
+                exportBtn.disabled = true;
+                importBtn.disabled = true;
+                exportBtn.title = "Feature unavailable - libraries didn't load";
+                importBtn.title = "Feature unavailable - libraries didn't load";
+            }
+            
+            copyJsonBtn.addEventListener('click', copyJSONToClipboard);
+            themeToggle.addEventListener('change', toggleTheme);
+
+            // All input fields that should trigger save and preview update
+            const allInputs = document.querySelectorAll('input, textarea, select');
+            allInputs.forEach(input => {
+                input.addEventListener('input', () => {
+                    saveState();
+                    updatePreview();
+                });
+            });
+
+            // Personality trait buttons
+            traitButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const trait = this.getAttribute('data-trait');
+                    toggleTraitSelection(trait);
+                });
+            });
+
+            // Undo/Redo buttons
+            undoBtn.addEventListener('click', () => {
+                if (historyIndex > 0) {
+                    isReverting = true;
+                    historyIndex--;
+                    loadState(history[historyIndex]);
+                    isReverting = false;
+                    updateUndoRedoButtons();
+                }
+            });
+
+            redoBtn.addEventListener('click', () => {
+                if (historyIndex < history.length - 1) {
+                    isReverting = true;
+                    historyIndex++;
+                    loadState(history[historyIndex]);
+                    isReverting = false;
+                    updateUndoRedoButtons();
+                }
+            });
+
+            // Functions
+            function initTheme() {
+                const savedTheme = localStorage.getItem('theme');
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                
+                if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+                    document.body.classList.add('dark-theme');
+                    themeToggle.checked = true;
+                } else {
+                    document.body.classList.remove('dark-theme');
+                    themeToggle.checked = false;
+                }
+            }
+
+            function toggleTheme() {
+                if (themeToggle.checked) {
+                    document.body.classList.add('dark-theme');
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    document.body.classList.remove('dark-theme');
+                    localStorage.setItem('theme', 'light');
+                }
+                updatePreview();
+            }
+
+            function toggleTraitSelection(trait) {
+                if (selectedTraits.has(trait)) {
+                    selectedTraits.delete(trait);
+                } else {
+                    selectedTraits.add(trait);
+                }
+                
+                updateSelectedTraitsDisplay();
+                updateTraitsInputField();
+                
+                // Update button states
+                traitButtons.forEach(button => {
+                    if (button.getAttribute('data-trait') === trait) {
+                        button.classList.toggle('selected', selectedTraits.has(trait));
+                    }
+                });
+                
+                saveState();
+            }
+
+            function updateSelectedTraitsDisplay() {
+                selectedTraitsContainer.innerHTML = '';
+                
+                if (selectedTraits.size === 0) {
+                    selectedTraitsContainer.innerHTML = '<small class="text-muted">No traits selected</small>';
+                    return;
+                }
+                
+                selectedTraits.forEach(trait => {
+                    const chip = document.createElement('span');
+                    chip.className = 'trait-chip';
+                    chip.innerHTML = `
+                        ${trait}
+                        <button class="remove-trait" data-trait="${trait}">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    `;
+                    selectedTraitsContainer.appendChild(chip);
+                });
+                
+                // Add event listeners to remove buttons
+                document.querySelectorAll('.remove-trait').forEach(button => {
+                    button.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const trait = this.getAttribute('data-trait');
+                        toggleTraitSelection(trait);
+                    });
+                });
+            }
+
+            function updateTraitsInputField() {
+                traitsList.value = Array.from(selectedTraits).join(', ');
+                traitsList.dispatchEvent(new Event('input'));
+            }
+
+            function handleImageUpload(e) {
+                const file = e.target.files[0];
+                if (file && file.type.match('image.*')) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        avatarContainer.innerHTML = `<img src="${e.target.result}" alt="Character Avatar">`;
+                        saveState();
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+
+            function handleDragOver(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                avatarContainer.style.borderColor = 'var(--primary-color)';
+            }
+
+            function handleDrop(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                avatarContainer.style.borderColor = '#ccc';
+                
+                const file = e.dataTransfer.files[0];
+                if (file && file.type.match('image.*')) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        avatarContainer.innerHTML = `<img src="${e.target.result}" alt="Character Avatar">`;
+                        saveState();
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+
+            function updatePreview() {
+                const json = generateJSON();
+                jsonPreview.textContent = JSON.stringify(json, null, 2);
+                
+                // Simple token counter (approximation)
+                const text = JSON.stringify(json);
+                const tokenCount = Math.ceil(text.split(/\s+/).length * 0.75);
+                tokenCounter.textContent = `${tokenCount} tokens`;
+            }
+
+            function generateJSON() {
+                const json = {
+                    meta: {
+                        version: "1.0",
+                        created: new Date().toISOString()
+                    },
+                    basic: {
+                        name: document.getElementById('characterName').value.trim() || "Unnamed",
+                        aliases: document.getElementById('aliases').value.split(',').map(s => s.trim()).filter(Boolean),
+                        species: document.getElementById('species').value.trim(),
+                        nationality: document.getElementById('nationality').value.trim(),
+                        ethnicity: document.getElementById('ethnicity').value.trim(),
+                        age: document.getElementById('age').value.trim(),
+                        occupation: document.getElementById('occupation').value.trim()
+                    },
+                    appearance: {
+                        description: document.getElementById('appearanceDesc').value.trim(),
+                        scent: document.getElementById('scent').value.trim(),
+                        clothing: document.getElementById('clothing').value.trim()
+                    },
+                    backstory: {
+                        background: document.getElementById('backstoryText').value.trim(),
+                        residence: document.getElementById('currentResidence').value.trim()
+                    },
+                    relationships: {
+                        characters: document.getElementById('relationshipsText').value.trim().split('\n').filter(Boolean).map(line => {
+                            const parts = line.split('-').map(s => s.trim());
+                            return {
+                                name: parts[0] || "",
+                                relationship: parts[1] || ""
+                            };
+                        }),
+                        npcs: document.getElementById('npcsText').value.trim().split('\n').filter(Boolean).map(line => {
+                            return line.trim();
+                        })
+                    },
+                    personality: {
+                        traits: Array.from(selectedTraits),
+                        description: document.getElementById('personalityDesc').value.trim()
+                    },
+                    intimacy: {
+                        preferences: document.getElementById('intimacyDesc').value.trim()
+                    },
+                    dialogue: {
+                        samples: document.getElementById('dialogueSamples').value.trim().split('\n').filter(Boolean)
+                    },
+                    notes: {
+                        additional: document.getElementById('notesText').value.trim()
+                    }
+                };
+
+                return json;
+            }
+
+            function copyJSONToClipboard() {
+                const json = generateJSON();
+                navigator.clipboard.writeText(JSON.stringify(json, null, 2)).then(() => {
+                    showToast('Success', 'JSON copied to clipboard!');
+                }).catch(err => {
+                    showToast('Error', 'Failed to copy JSON: ' + err);
+                });
+            }
+
+            function exportToPNG() {
+                if (!librariesLoaded) {
+                    showToast('Error', 'Export feature unavailable - required libraries failed to load');
+                    return;
+                }
+
+                try {
+                    const json = generateJSON();
+                    const jsonStr = JSON.stringify(json);
+                    
+                    // Create canvas for the card
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 512;
+                    canvas.height = 512;
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Draw the card background
+                    ctx.fillStyle = document.body.classList.contains('dark-theme') ? '#1e1e1e' : '#ffffff';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    // Add character name
+                    ctx.fillStyle = document.body.classList.contains('dark-theme') ? '#ffffff' : '#333333';
+                    ctx.font = 'bold 24px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(json.basic.name, canvas.width/2, 40);
+                    
+                    // Add avatar if exists
+                    if (avatarContainer.querySelector('img')) {
+                        const img = new Image();
+                        img.onload = function() {
+                            // Draw the image centered
+                            const size = Math.min(img.width, img.height, 300);
+                            ctx.drawImage(
+                                img, 
+                                (canvas.width - size) / 2, 
+                                60, 
+                                size, 
+                                size
+                            );
+                            
+                            // Add traits below
+                            if (selectedTraits.size > 0) {
+                                ctx.font = '16px Arial';
+                                ctx.fillText('Traits: ' + Array.from(selectedTraits).join(', '), canvas.width/2, 420);
+                            }
+                            
+                            // Convert canvas to Blob (binary data)
+                            canvas.toBlob((blob) => {
+                                encodePNGWithMetadata(blob, jsonStr);
+                            }, 'image/png');
+                        };
+                        img.crossOrigin = 'Anonymous';
+                        img.src = avatarContainer.querySelector('img').src;
+                    } else {
+                        // Convert canvas to Blob (binary data)
+                        canvas.toBlob((blob) => {
+                            encodePNGWithMetadata(blob, jsonStr);
+                        }, 'image/png');
+                    }
+                } catch (error) {
+                    showToast('Export Error', 'Failed to export PNG: ' + error.message);
+                    console.error(error);
+                }
+            }
+
+            function encodePNGWithMetadata(blob, jsonStr) {
+                // Read the blob as an array buffer
+                const reader = new FileReader();
+                reader.onload = function() {
+                    try {
+                        const arrayBuffer = reader.result;
+                        const bytes = new Uint8Array(arrayBuffer);
+                        
+                        // Extract existing chunks
+                        let chunks;
+                        try {
+                            chunks = PNGChunksExtract.default(bytes);
+                        } catch (e) {
+                            chunks = [];
+                        }
+                        
+                        // Create metadata chunk with base64 encoded JSON
+                        const base64Json = btoa(encodeURIComponent(jsonStr));
+                        const metadataChunk = {
+                            name: 'tEXt',
+                            data: stringToBytes('character_data\0' + base64Json)
+                        };
+                        
+                        // Insert metadata chunk before the IEND chunk
+                        chunks.splice(-1, 0, metadataChunk);
+                        
+                        // Encode PNG with our metadata
+                        const pngData = PNGChunksEncode.default(chunks);
+                        
+                        // Create download link
+                        downloadPNG(pngData);
+                        
+                        showToast('Export Complete', 'Character card exported with embedded metadata!');
+                    } catch (error) {
+                        showToast('Export Error', 'Failed to encode PNG: ' + error.message);
+                        console.error(error);
+                    }
+                };
+                reader.onerror = function() {
+                    showToast('Export Error', 'Failed to read image data');
+                };
+                reader.readAsArrayBuffer(blob);
+            }
+
+            function stringToBytes(str) {
+                const bytes = new Uint8Array(str.length);
+                for (let i = 0; i < str.length; i++) {
+                    bytes[i] = str.charCodeAt(i);
+                }
+                return bytes;
+            }
+
+            function downloadPNG(pngData) {
+                const blob = new Blob([pngData], { type: 'image/png' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = (document.getElementById('characterName').value || 'character') + '.png';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                setTimeout(() => {
+                    URL.revokeObjectURL(url);
+                }, 100);
+            }
+
+            function importFromPNG(e) {
+                if (!librariesLoaded) {
+                    showToast('Error', 'Import feature unavailable - required libraries failed to load');
+                    return;
+                }
+
+                const file = e.target.files[0];
+                if (!file || !file.type.match('image.*')) {
+                    showToast('Import Error', 'Please select a valid PNG file.');
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const arrayBuffer = e.target.result;
+                        if (!arrayBuffer) {
+                            throw new Error('Failed to read file');
+                        }
+                        
+                        const bytes = new Uint8Array(arrayBuffer);
+                        
+                        // Extract chunks
+                        let chunks;
+                        try {
+                            chunks = PNGChunksExtract.default(bytes);
+                        } catch (err) {
+                            showToast('Import Error', 'Not a valid PNG file.');
+                            return;
+                        }
+                        
+                        // Find our metadata chunk
+                        const textChunks = chunks.filter(chunk => chunk.name === 'tEXt');
+                        let metadataChunk = null;
+                        
+                        for (const chunk of textChunks) {
+                            const textData = bytesToString(chunk.data);
+                            if (textData.startsWith('character_data\0')) {
+                                metadataChunk = textData;
+                                break;
+                            }
+                        }
+                        
+                        if (!metadataChunk) {
+                            showToast('Import Info', 'No character data found in this PNG.');
+                            return;
+                        }
+                        
+                        try {
+                            // Extract and decode the JSON data
+                            const base64Json = metadataChunk.substring('character_data\0'.length);
+                            const jsonStr = decodeURIComponent(atob(base64Json));
+                            const json = JSON.parse(jsonStr);
+                            
+                            // Show preview first
+                            jsonPreview.textContent = JSON.stringify(json, null, 2);
+                            document.getElementById('preview-tab').click();
+                            
+                            // Ask for confirmation before loading
+                            const confirmation = confirm('Character data found in PNG. Do you want to load it?');
+                            if (confirmation) {
+                                parseCharacterJSON(json);
+                            }
+                        } catch (err) {
+                            showToast('Import Error', 'Failed to parse embedded character data.');
+                            console.error(err);
+                        }
+                    } catch (error) {
+                        showToast('Import Error', 'Failed to process PNG file: ' + error.message);
+                        console.error(error);
+                    }
+                };
+                reader.onerror = function() {
+                    showToast('Import Error', 'Failed to read file');
+                };
+                reader.readAsArrayBuffer(file);
+            }
+
+            function bytesToString(bytes) {
+                return Array.from(bytes).map(b => String.fromCharCode(b)).join('');
+            }
+
+            function parseCharacterJSON(json) {
+                try {
+                    // Clear existing traits
+                    selectedTraits.clear();
+                    
+                    // Basic Info
+                    if (json.basic) {
+                        document.getElementById('characterName').value = json.basic.name || '';
+                        document.getElementById('aliases').value = json.basic.aliases?.join(', ') || '';
+                        document.getElementById('species').value = json.basic.species || '';
+                        document.getElementById('nationality').value = json.basic.nationality || '';
+                        document.getElementById('ethnicity').value = json.basic.ethnicity || '';
+                        document.getElementById('age').value = json.basic.age || '';
+                        document.getElementById('occupation').value = json.basic.occupation || '';
+                    }
+                    
+                    // Appearance
+                    if (json.appearance) {
+                        document.getElementById('appearanceDesc').value = json.appearance.description || '';
+                        document.getElementById('scent').value = json.appearance.scent || '';
+                        document.getElementById('clothing').value = json.appearance.clothing || '';
+                    }
+                    
+                    // Backstory
+                    if (json.backstory) {
+                        document.getElementById('backstoryText').value = json.backstory.background || '';
+                        document.getElementById('currentResidence').value = json.backstory.residence || '';
+                    }
+                    
+                    // Relationships
+                    if (json.relationships) {
+                        document.getElementById('relationshipsText').value = 
+                            json.relationships.characters?.map(c => `${c.name} - ${c.relationship}`).join('\n') || '';
+                        document.getElementById('npcsText').value = 
+                            json.relationships.npcs?.join('\n') || '';
+                    }
+                    
+                    // Personality
+                    if (json.personality) {
+                        if (json.personality.traits) {
+                            json.personality.traits.forEach(t => selectedTraits.add(t));
+                        }
+                        document.getElementById('personalityDesc').value = json.personality.description || '';
+                    }
+                    
+                    // Intimacy
+                    if (json.intimacy) {
+                        document.getElementById('intimacyDesc').value = json.intimacy.preferences || '';
+                    }
+                    
+                    // Dialogue
+                    if (json.dialogue) {
+                        document.getElementById('dialogueSamples').value = json.dialogue.samples?.join('\n') || '';
+                    }
+                    
+                    // Notes
+                    if (json.notes) {
+                        document.getElementById('notesText').value = json.notes.additional || '';
+                    }
+                    
+                    // Update UI
+                    updateSelectedTraitsDisplay();
+                    updateTraitsInputField();
+                    saveState();
+                    updatePreview();
+                    
+                    // Show success message
+                    showToast('Success', 'Character loaded successfully!');
+                } catch (err) {
+                    showToast('Import Error', 'Failed to parse JSON data: ' + err.message);
+                    console.error(err);
+                }
+            }
+
+            function showToast(title, message) {
+                // Create toast dynamically
+                const toastEl = document.createElement('div');
+                toastEl.className = 'toast show';
+                toastEl.setAttribute('role', 'alert');
+                toastEl.setAttribute('aria-live', 'assertive');
+                toastEl.setAttribute('aria-atomic', 'true');
+                toastEl.style.position = 'fixed';
+                toastEl.style.top = '20px';
+                toastEl.style.right = '20px';
+                toastEl.style.zIndex = '1100';
+                toastEl.style.minWidth = '300px';
+                
+                toastEl.innerHTML = `
+                    <div class="toast-header">
+                        <strong class="me-auto">${title}</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                `;
+                
+                document.body.appendChild(toastEl);
+                
+                // Auto-remove after 5 seconds
+                setTimeout(() => {
+                    toastEl.remove();
+                }, 5000);
+                
+                // Close button
+                toastEl.querySelector('.btn-close').addEventListener('click', () => {
+                    toastEl.remove();
+                });
+            }
+
+            function saveToStorage() {
+                const state = {};
+                allInputs.forEach(input => {
+                    state[input.id] = input.value;
+                });
+                
+                // Save avatar if exists
+                if (avatarContainer.querySelector('img')) {
+                    state.avatar = avatarContainer.querySelector('img').src;
+                }
+                
+                // Save selected traits
+                state.selectedTraits = Array.from(selectedTraits);
+                
+                localStorage.setItem('characterData', JSON.stringify(state));
+            }
+
+            function loadFromStorage() {
+                const savedData = localStorage.getItem('characterData');
+                if (savedData) {
+                    const state = JSON.parse(savedData);
+                    loadState(state);
+                    
+                    // Add to history
+                    history = [state];
+                    historyIndex = 0;
+                    updateUndoRedoButtons();
+                }
+                
+                updatePreview();
+            }
+
+            function loadState(state) {
+                Object.keys(state).forEach(key => {
+                    if (key === 'avatar') {
+                        avatarContainer.innerHTML = `<img src="${state.avatar}" alt="Character Avatar">`;
+                    } else if (key === 'selectedTraits') {
+                        selectedTraits.clear();
+                        state.selectedTraits.forEach(trait => selectedTraits.add(trait));
+                        updateSelectedTraitsDisplay();
+                    } else if (document.getElementById(key)) {
+                        document.getElementById(key).value = state[key] || '';
+                    }
+                });
+                updatePreview();
+            }
+
+            function saveState() {
+                if (isReverting) return;
+                
+                const currentState = {};
+                allInputs.forEach(input => {
+                    currentState[input.id] = input.value;
+                });
+                
+                // Save avatar if exists
+                if (avatarContainer.querySelector('img')) {
+                    currentState.avatar = avatarContainer.querySelector('img').src;
+                }
+                
+                // Save selected traits
+                currentState.selectedTraits = Array.from(selectedTraits);
+                
+                // Only save to history if state has changed
+                if (history.length === 0 || JSON.stringify(history[historyIndex]) !== JSON.stringify(currentState)) {
+                    // Remove any states after the current index
+                    history = history.slice(0, historyIndex + 1);
+                    
+                    // Add new state
+                    history.push(currentState);
+                    historyIndex++;
+                    
+                    // Limit history size to prevent memory issues
+                    if (history.length > 50) {
+                        history = history.slice(1);
+                        historyIndex--;
+                    }
+                    
+                    updateUndoRedoButtons();
+                }
+                
+                saveToStorage();
+            }
+
+            function updateUndoRedoButtons() {
+                undoBtn.disabled = historyIndex <= 0;
+                redoBtn.disabled = historyIndex >= history.length - 1;
+            }
+
+            // Initialize
+            updatePreview();
+            updateUndoRedoButtons();
+        });
+    </script>
+</body>
+</html>
