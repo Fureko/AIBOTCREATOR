@@ -1,1326 +1,1010 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Character Profile Editor</title>
-    <script type="importmap">
-        {
-            "imports": {
-                "pako": "https://cdn.jsdelivr.net/npm/pako@2.1.0/+esm",
-                "png-chunks-extract": "https://cdn.jsdelivr.net/npm/png-chunks-extract@1.0.0/+esm",
-                "png-chunks-encode": "https://cdn.jsdelivr.net/npm/png-chunks-encode@1.0.0/+esm",
-                "bootstrap": "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
-            }
-        }
-    </script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    <style>
-        :root {
-            --primary-color: #3498db;
-            --secondary-color: #2980b9;
-            --appearance-color: #3498db;
-            --backstory-color: #9b59b6;
-            --relationships-color: #2ecc71;
-            --personality-color: #f1c40f;
-            --intimacy-color: #e74c3c;
-            --dialogue-color: #1abc9c;
-            --notes-color: #95a5a6;
-            --bg-color: #ffffff;
-            --text-color: #333333;
-            --card-bg: #ffffff;
-            --input-bg: #ffffff;
-            --input-border: #ced4da;
-            --input-text-color: #333333;
-        }
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>AI Character Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ---------- THEME COLORS (light-by-default, dark via body[data-theme="dark"]) ---------- */
+  :root{
+    --bg:#f6f7f9;
+    --card:#ffffff;
+    --muted:#7b858f;
+    --text:#0b1220;
+    --glass: rgba(255,255,255,0.6);
+    --radius:12px;
+    --accent:#9D4BFF; /* purple accent */
+    --accent-light: #BF8AFF;
+    --btn-unselected-bg: #0b0b0b;
+    --btn-unselected-text: #fff;
+    --border:#e6e9ee;
+    --shadow: 0 6px 20px rgba(16,24,40,0.06);
+    --success: #00C875;
+    --warning: #FFBE0B;
+    --danger: #FF6B6B;
+    --info: #4DABF7;
+    
+    /* Gradients */
+    --gradient-purple: linear-gradient(135deg, var(--accent), var(--accent-light));
+    --gradient-card: linear-gradient(145deg, var(--card), var(--card));
+  }
+  
+  body[data-theme="dark"]{
+    --bg:#0b0f14;
+    --card:#161B22;
+    --muted:#98a3af;
+    --text:#e6eef8;
+    --glass: rgba(30,30,35,0.8);
+    --accent:#9D4BFF;
+    --accent-light: #BF8AFF;
+    --btn-unselected-bg: #0a0a0a;
+    --btn-unselected-text: #fff;
+    --border: rgba(255,255,255,0.08);
+    --shadow: 0 8px 30px rgba(0,0,0,0.6);
+    --gradient-card: linear-gradient(145deg, var(--card), #1A2028);
+  }
 
-        .dark-theme {
-            --primary-color: #2980b9;
-            --secondary-color: #3498db;
-            --appearance-color: #2980b9;
-            --backstory-color: #8e44ad;
-            --relationships-color: #27ae60;
-            --personality-color: #f39c12;
-            --intimacy-color: #c0392b;
-            --dialogue-color: #16a085;
-            --notes-color: #7f8c8d;
-            --bg-color: #121212;
-            --text-color: #f0f0f0;
-            --card-bg: #1e1e1e;
-            --input-bg: #2d2d2d;
-            --input-border: #444;
-            --input-text-color: #f0f0f0;
-        }
+  /* ---------- BASE ---------- */
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    padding:28px;
+    transition: background-color .25s, color .25s;
+    background-image: radial-gradient(circle at 50% 50%, rgba(157,75,255,0.06) 0%, transparent 70%);
+  }
 
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            padding-top: 20px;
-            padding-bottom: 20px;
-            min-height: 100vh;
-            transition: background-color 0.3s, color 0.3s;
-        }
+  .app{
+    max-width:1200px;
+    margin:0 auto;
+    display:grid;
+    grid-template-columns: 1fr 420px;
+    gap:20px;
+  }
+  @media (max-width:980px){ .app{grid-template-columns:1fr;padding:18px} }
 
-        .card {
-            background-color: var(--card-bg);
-            transition: background-color 0.3s;
-        }
+  header{
+    grid-column:1/-1;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:6px;
+  }
+  .brand h1{
+    font-size:16px;
+    margin:0;
+    font-weight:800;
+    background: var(--gradient-purple);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    display: inline-block;
+  }
+  .brand p{
+    margin:4px 0 0;
+    color:var(--muted);
+    font-size:13px;
+    font-weight:500;
+  }
 
-        .form-control, .form-select {
-            background-color: var(--input-bg);
-            color: var(--input-text-color);
-            border-color: var(--input-border);
-            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
-        }
+  .controls{
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+  .btn{
+    border:0;
+    padding:8px 16px;
+    border-radius:10px;
+    background:var(--glass);
+    color:var(--text);
+    cursor:pointer;
+    font-weight:600;
+    font-size:13px;
+    transition: all 0.2s ease;
+    border: 1px solid var(--border);
+    backdrop-filter: blur(8px);
+  }
+  .btn:hover{
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+  .btn.primary{
+    background: var(--gradient-purple);
+    color:white;
+    box-shadow: 0 8px 24px rgba(157,75,255,0.2);
+    border: 1px solid rgba(157,75,255,0.2);
+  }
+  .btn.primary:hover {
+    box-shadow: 0 10px 28px rgba(157,75,255,0.3);
+  }
 
-        .accordion {
-            margin-bottom: 20px;
-        }
+  main.left, aside.right{
+    background:var(--gradient-card);
+    border-radius:var(--radius);
+    padding:0;
+    min-height:640px;
+    overflow:hidden;
+    border: 1px solid var(--border);
+  }
 
-        .accordion-button:not(.collapsed) {
-            color: white;
-        }
+  /* ---------- CARDS ---------- */
+  .card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:14px;
+    box-shadow:var(--shadow);
+    transition: all 0.2s ease;
+  }
+  .card:hover {
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  }
+  .card + .card{margin-top:12px}
 
-        .section-appearance .accordion-button:not(.collapsed) {
-            background-color: var(--appearance-color);
-        }
+  /* ---------- ACCORDIONS ---------- */
+  .accordion{
+    margin-bottom:12px;
+    border-radius:10px;
+    overflow:hidden;
+    transition: all 0.2s ease;
+  }
+  .accordion:hover {
+    transform: translateY(-1px);
+  }
+  .acc-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:12px 14px;
+    cursor:pointer;
+    gap:12px;
+    border-bottom:1px solid var(--border);
+    transition: background-color 0.2s ease;
+  }
+  .acc-head:hover {
+    background: var(--glass);
+  }
+  .acc-title{
+    font-weight:700;
+    color: var(--accent);
+  }
+  .acc-body{
+    padding:12px 14px;
+    display:none;
+    background:transparent;
+    animation: fadeIn 0.3s ease;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .acc-body.open{display:block}
 
-        .section-backstory .accordion-button:not(.collapsed) {
-            background-color: var(--backstory-color);
-        }
+  label{
+    display:block;
+    font-size:13px;
+    margin-bottom:6px;
+    color:var(--muted);
+    font-weight:600;
+  }
+  input[type="text"], textarea, select{
+    width:100%;
+    padding:12px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    background:var(--card);
+    color:var(--text);
+    resize:vertical;
+    font-size:14px;
+    transition: all 0.2s ease;
+  }
+  input[type="text"]:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(157,75,255,0.2);
+    outline: none;
+  }
+  textarea{min-height:64px}
 
-        .section-relationships .accordion-button:not(.collapsed) {
-            background-color: var(--relationships-color);
-        }
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media (max-width:640px){.row{grid-template-columns:1fr}}
 
-        .section-personality .accordion-button:not(.collapsed) {
-            background-color: var(--personality-color);
-        }
+  /* ---------- Personality assistant (traits) ---------- */
+  .traits { display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;align-items:center }
+  .trait-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding:6px 12px;
+    border-radius:999px;
+    border:2px solid transparent;
+    font-weight:600;
+    font-size:13px;
+    color:var(--btn-unselected-text);
+    background:var(--btn-unselected-bg);
+    cursor:pointer;
+    transition:all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(2,6,23,0.06);
+  }
+  .trait-btn:hover{
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  }
+  .trait-btn.selected{
+    background:var(--accent) !important;
+    color: #fff !important;
+    border-color: transparent !important;
+    box-shadow: 0 8px 22px rgba(157,75,255,0.2);
+  }
 
-        .section-intimacy .accordion-button:not(.collapsed) {
-            background-color: var(--intimacy-color);
-        }
+  .trait-cat{
+    font-size:12px;
+    margin-top:16px;
+    margin-bottom:8px;
+    color:var(--muted);
+    font-weight:700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
 
-        .section-dialogue .accordion-button:not(.collapsed) {
-            background-color: var(--dialogue-color);
-        }
+  /* ---------- Right column tabs ---------- */
+  .tabs{
+    display:flex;
+    gap:8px;
+    margin-bottom:12px;
+    flex-wrap:wrap;
+  }
+  .tab{
+    padding:8px 16px;
+    border-radius:10px;
+    background:var(--glass);
+    cursor:pointer;
+    font-weight:700;
+    color:var(--muted);
+    border: 1px solid var(--border);
+    transition: all 0.2s ease;
+  }
+  .tab:hover {
+    transform: translateY(-1px);
+  }
+  .tab.active{
+    background: var(--gradient-purple);
+    color:white;
+    border-color: transparent;
+  }
 
-        .section-notes .accordion-button:not(.collapsed) {
-            background-color: var(--notes-color);
-        }
+  /* ---------- preview ---------- */
+  .preview{
+    background: var(--card);
+    border-radius:10px;
+    padding:12px;
+    white-space:pre-wrap;
+    font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace;
+    font-size:13px;
+    color:var(--muted);
+    overflow:auto;
+    max-height:420px;
+    border: 1px solid var(--border);
+  }
 
-        .text-preview {
-            white-space: pre-wrap;
-            font-family: monospace;
-            border: 1px solid var(--input-border);
-            padding: 10px;
-            border-radius: 5px;
-            background-color: var(--input-bg);
-            max-height: 300px;
-            overflow-y: auto;
-            transition: all 0.3s;
-            color: var(--input-text-color);
-        }
+  .tiny{
+    font-size:12px;
+    color:var(--muted);
+    opacity: 0.8;
+  }
+  .copy-row{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    justify-content:space-between;
+    margin-top:8px
+  }
 
-        .avatar-container {
-            position: relative;
-            width: 150px;
-            height: 150px;
-            margin: 0 auto 20px;
-            border: 2px dashed #ccc;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            overflow: hidden;
-            transition: all 0.3s;
-        }
+  /* neat spacing for small panels */
+  .muted-block{
+    background:var(--card);
+    border-radius:10px;
+    padding:16px;
+    border:1px solid var(--border);
+    transition: all 0.2s ease;
+  }
+  .muted-block:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
 
-        .avatar-container:hover {
-            border-color: var(--primary-color);
-        }
+  /* small responsive tweaks */
+  .right-grid{display:grid;grid-template-columns:1fr;gap:12px}
 
-        .avatar-container img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: cover;
-        }
+  /* Footer */
+  footer {
+    grid-column:1/-1;
+    margin-top:14px;
+    color:var(--muted);
+    font-size:13px;
+    text-align:center;
+    padding: 12px;
+    border-radius: 8px;
+    background: var(--glass);
+    border: 1px solid var(--border);
+  }
 
-        .avatar-placeholder {
-            text-align: center;
-            color: #999;
-            font-size: 0.9em;
-            padding: 20px;
-        }
-
-        .trait-button {
-            margin: 2px;
-            font-size: 0.8rem;
-            transition: all 0.2s;
-        }
-
-        .trait-button.selected {
-            transform: scale(0.95);
-            opacity: 0.8;
-        }
-
-        .trait-chip {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.25rem 0.5rem;
-            margin: 0.2rem;
-            background-color: var(--primary-color);
-            color: white;
-            border-radius: 16px;
-            font-size: 0.8rem;
-        }
-
-        .trait-chip button {
-            background: none;
-            border: none;
-            color: white;
-            margin-left: 0.3rem;
-            cursor: pointer;
-            font-size: 0.8rem;
-            display: inline-flex;
-            align-items: center;
-        }
-
-        .token-counter {
-            position: absolute;
-            right: 15px;
-            top: 10px;
-            background: rgba(0, 0, 0, 0.1);
-            padding: 3px 6px;
-            border-radius: 3px;
-            font-size: 0.8em;
-        }
-
-        .dark-theme .token-counter {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .tab-content {
-            padding: 15px 0;
-        }
-
-        .history-buttons {
-            margin-left: 10px;
-        }
-
-        .collapse-icon {
-            transition: transform 0.3s;
-        }
-
-        .collapsed .collapse-icon {
-            transform: rotate(-90deg);
-        }
-
-        .toast-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1100;
-        }
-
-        .progress {
-            height: 5px;
-        }
-
-        .progress-bar {
-            transition: width 1s linear;
-        }
-
-        .offline-message {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            background-color: #ff5733;
-            color: white;
-            padding: 10px;
-            text-align: center;
-            z-index: 1100;
-            display: none;
-        }
-
-        .js-fallback {
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            display: none;
-        }
-
-        .js-fallback.show {
-            display: block;
-        }
-    </style>
+  /* Loading animation */
+  @keyframes pulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+  .loading {
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+</style>
 </head>
-<body>
-    <div class="offline-message" id="offlineMessage">
-        <strong>Warning:</strong> You appear to be offline. Some features may not work correctly.
+<body data-theme="light">
+<div class="app" role="application" aria-label="OC Profile Builder">
+  <header>
+    <div class="brand">
+      <div>
+<h1>AI Character Builder</h1>
+<p class="tiny">
+  Template made by 
+  <a href="https://janitorai.com/profiles/ae3b8516-54d5-4469-8557-6dcf808128d0_profile-of-iorveths" 
+     target="_blank" rel="noopener noreferrer">@Ioverths</a>
+</p>
+<p class="tiny">
+  Website made by 
+  <a href="https://janitorai.com/profiles/0977574d-406b-430b-9d15-fb217143c932_profile-of-fureko" 
+     target="_blank" rel="noopener noreferrer">@Fureko</a>
+</p>
+
+      </div>
     </div>
 
-    <div class="container" id="mainContainer">
-        <div class="js-fallback" id="jsFallback">
-            <h4>JavaScript Error</h4>
-            <p>Some JavaScript libraries failed to load. Basic editor functionality will work, but PNG import/export features will be unavailable.</p>
-            <p>Please check your internet connection and try again.</p>
-        </div>
-
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Character Profile Editor</h1>
-            <div class="d-flex">
-                <div class="form-check form-switch me-3">
-                    <input class="form-check-input" type="checkbox" id="themeToggle">
-                    <label class="form-check-label" for="themeToggle">Dark Mode</label>
-                </div>
-                <button class="btn btn-sm btn-primary history-buttons" id="undoBtn" disabled>
-                    <i class="bi bi-arrow-counterclockwise"></i> Undo
-                </button>
-                <button class="btn btn-sm btn-secondary history-buttons ms-2" id="redoBtn" disabled>
-                    <i class="bi bi-arrow-clockwise"></i> Redo
-                </button>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-md-4">
-                <div class="card mb-3">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">Character Avatar</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="avatar-container" id="avatarContainer">
-                            <div class="avatar-placeholder">Drag & Drop or Click to Upload Image</div>
-                        </div>
-                        <input type="file" id="imageInput" accept="image/*" style="display: none;">
-                    </div>
-                </div>
-
-                <div class="card mb-3">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">Import/Export</h5>
-                    </div>
-                    <div class="card-body">
-                        <button class="btn btn-success w-100 mb-2" id="exportBtn">Export as PNG Card</button>
-                        <button class="btn btn-info w-100" id="importBtn">Import PNG Card</button>
-                        <input type="file" id="importInput" accept=".png" style="display: none;">
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">Personality Assistant</h5>
-                    </div>
-                    <div class="card-body">
-                        <div id="selectedTraits" class="mb-3"></div>
-                        <div style="max-height: 300px; overflow-y: auto;">
-                            <div class="mb-2">
-                                <h6>Positive Traits</h6>
-                                <div class="d-flex flex-wrap">
-                                    <button class="btn btn-sm btn-outline-success trait-button" data-trait="kind">Kind</button>
-                                    <button class="btn btn-sm btn-outline-success trait-button" data-trait="compassionate">Compassionate</button>
-                                    <button class="btn btn-sm btn-outline-success trait-button" data-trait="empathic">Empathic</button>
-                                    <button class="btn btn-sm btn-outline-success trait-button" data-trait="patient">Patient</button>
-                                    <button class="btn btn-sm btn-outline-success trait-button" data-trait="optimistic">Optimistic</button>
-                                    <button class="btn btn-sm btn-outline-success trait-button" data-trait="cheerful">Cheerful</button>
-                                    <button class="btn btn-sm btn-outline-success trait-button" data-trait="humble">Humble</button>
-                                    <button class="btn btn-sm btn-outline-success trait-button" data-trait="generous">Generous</button>
-                                    <button class="btn btn-sm btn-outline-success trait-button" data-trait="loyal">Loyal</button>
-                                    <button class="btn btn-sm btn-outline-success trait-button" data-trait="honest">Honest</button>
-                                </div>
-                            </div>
-                            <div class="mb-2">
-                                <h6>Negative Traits</h6>
-                                <div class="d-flex flex-wrap">
-                                    <button class="btn btn-sm btn-outline-danger trait-button" data-trait="arrogant">Arrogant</button>
-                                    <button class="btn btn-sm btn-outline-danger trait-button" data-trait="impulsive">Impulsive</button>
-                                    <button class="btn btn-sm btn-outline-danger trait-button" data-trait="stubborn">Stubborn</button>
-                                    <button class="btn btn-sm btn-outline-danger trait-button" data-trait="vain">Vain</button>
-                                    <button class="btn btn-sm btn-outline-danger trait-button" data-trait="jealous">Jealous</button>
-                                    <button class="btn btn-sm btn-outline-danger trait-button" data-trait="pessimistic">Pessimistic</button>
-                                    <button class="btn btn-sm btn-outline-danger trait-button" data-trait="selfish">Selfish</button>
-                                    <button class="btn btn-sm btn-outline-danger trait-button" data-trait="manipulative">Manipulative</button>
-                                    <button class="btn btn-sm btn-outline-danger trait-button" data-trait="hostile">Hostile</button>
-                                    <button class="btn btn-sm btn-outline-danger trait-button" data-trait="moody">Moody</button>
-                                </div>
-                            </div>
-                            <div class="mb-2">
-                                <h6>Neutral Traits</h6>
-                                <div class="d-flex flex-wrap">
-                                    <button class="btn btn-sm btn-outline-secondary trait-button" data-trait="reserved">Reserved</button>
-                                    <button class="btn btn-sm btn-outline-secondary trait-button" data-trait="stoic">Stoic</button>
-                                    <button class="btn btn-sm btn-outline-secondary trait-button" data-trait="pragmatic">Pragmatic</button>
-                                    <button class="btn btn-sm btn-outline-secondary trait-button" data-trait="logical">Logical</button>
-                                    <button class="btn btn-sm btn-outline-secondary trait-button" data-trait="curious">Curious</button>
-                                    <button class="btn btn-sm btn-outline-secondary trait-button" data-trait="independent">Independent</button>
-                                    <button class="btn btn-sm btn-outline-secondary trait-button" data-trait="ambitious">Ambitious</button>
-                                    <button class="btn btn-sm btn-outline-secondary trait-button" data-trait="disciplined">Disciplined</button>
-                                    <button class="btn btn-sm btn-outline-secondary trait-button" data-trait="perfectionist">Perfectionist</button>
-                                    <button class="btn btn-sm btn-outline-secondary trait-button" data-trait="competitive">Competitive</button>
-                                </div>
-                            </div>
-                            <div class="mb-2">
-                                <h6>Romantic Traits</h6>
-                                <div class="d-flex flex-wrap">
-                                    <button class="btn btn-sm btn-outline-warning trait-button" data-trait="flirtatious">Flirtatious</button>
-                                    <button class="btn btn-sm btn-outline-warning trait-button" data-trait="affectionate">Affectionate</button>
-                                    <button class="btn btn-sm btn-outline-warning trait-button" data-trait="passionate">Passionate</button>
-                                    <button class="btn btn-sm btn-outline-warning trait-button" data-trait="possessive">Possessive</button>
-                                    <button class="btn btn-sm btn-outline-warning trait-button" data-trait="playful">Playful</button>
-                                    <button class="btn btn-sm btn-outline-warning trait-button" data-trait="romantic">Romantic</button>
-                                    <button class="btn btn-sm btn-outline-warning trait-button" data-trait="seductive">Seductive</button>
-                                    <button class="btn btn-sm btn-outline-warning trait-button" data-trait="dominant">Dominant</button>
-                                    <button class="btn btn-sm btn-outline-warning trait-button" data-trait="submissive">Submissive</button>
-                                    <button class="btn btn-sm btn-outline-warning trait-button" data-trait="teasing">Teasing</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-8">
-                <ul class="nav nav-tabs" id="editorTabs" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="editor-tab" data-bs-toggle="tab" data-bs-target="#editor" type="button" role="tab">Editor</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="preview-tab" data-bs-toggle="tab" data-bs-target="#preview" type="button" role="tab">JSON Preview</button>
-                    </li>
-                </ul>
-
-                <div class="tab-content" id="editorTabsContent">
-                    <div class="tab-pane fade show active" id="editor" role="tabpanel">
-                        <div class="accordion" id="characterAccordion">
-                            <!-- Basic Info Section -->
-                            <div class="accordion-item">
-                                <h2 class="accordion-header">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#basicInfo">
-                                        <i class="bi bi-info-circle me-2 collapse-icon"></i> Basic Information
-                                    </button>
-                                </h2>
-                                <div id="basicInfo" class="accordion-collapse collapse" data-bs-parent="#characterAccordion">
-                                    <div class="accordion-body">
-                                        <div class="row g-3">
-                                            <div class="col-md-6">
-                                                <label for="characterName" class="form-label">Character Name</label>
-                                                <input type="text" class="form-control" id="characterName">
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label for="aliases" class="form-label">Aliases</label>
-                                                <input type="text" class="form-control" id="aliases" placeholder="Comma-separated list">
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label for="species" class="form-label">Species</label>
-                                                <input type="text" class="form-control" id="species">
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label for="nationality" class="form-label">Nationality</label>
-                                                <input type="text" class="form-control" id="nationality">
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label for="ethnicity" class="form-label">Ethnicity</label>
-                                                <input type="text" class="form-control" id="ethnicity">
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label for="age" class="form-label">Age</label>
-                                                <input type="text" class="form-control" id="age">
-                                            </div>
-                                            <div class="col-md-8">
-                                                <label for="occupation" class="form-label">Occupation/Role</label>
-                                                <input type="text" class="form-control" id="occupation">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Appearance Section -->
-                            <div class="accordion-item section-appearance">
-                                <h2 class="accordion-header">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#appearance">
-                                        <i class="bi bi-person-video3 me-2 collapse-icon"></i> Appearance
-                                    </button>
-                                </h2>
-                                <div id="appearance" class="accordion-collapse collapse" data-bs-parent="#characterAccordion">
-                                    <div class="accordion-body">
-                                        <div class="mb-3">
-                                            <label for="appearanceDesc" class="form-label">Physical Description</label>
-                                            <textarea class="form-control" id="appearanceDesc" rows="4"></textarea>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="scent" class="form-label">Scent</label>
-                                            <input type="text" class="form-control" id="scent">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="clothing" class="form-label">Clothing</label>
-                                            <textarea class="form-control" id="clothing" rows="3"></textarea>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Backstory Section -->
-                            <div class="accordion-item section-backstory">
-                                <h2 class="accordion-header">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#backstory">
-                                        <i class="bi bi-book me-2 collapse-icon"></i> Backstory
-                                    </button>
-                                </h2>
-                                <div id="backstory" class="accordion-collapse collapse" data-bs-parent="#characterAccordion">
-                                    <div class="accordion-body">
-                                        <div class="mb-3">
-                                            <label for="backstoryText" class="form-label">Backstory</label>
-                                            <textarea class="form-control" id="backstoryText" rows="5"></textarea>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="currentResidence" class="form-label">Current Residence</label>
-                                            <input type="text" class="form-control" id="currentResidence">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Relationships Section -->
-                            <div class="accordion-item section-relationships">
-                                <h2 class="accordion-header">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#relationships">
-                                        <i class="bi bi-people me-2 collapse-icon"></i> Relationships
-                                    </button>
-                                </h2>
-                                <div id="relationships" class="accordion-collapse collapse" data-bs-parent="#characterAccordion">
-                                    <div class="accordion-body">
-                                        <div class="mb-3">
-                                            <label for="relationshipsText" class="form-label">Relationships (one per line)</label>
-                                            <textarea class="form-control" id="relationshipsText" rows="6" placeholder="Format: Name - Relationship"></textarea>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="npcsText" class="form-label">NPCs / Side Characters</label>
-                                            <textarea class="form-control" id="npcsText" rows="6" placeholder="Format: &lt;Name, hair color, eye color, traits, role&gt;..."></textarea>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Personality Section -->
-                            <div class="accordion-item section-personality">
-                                <h2 class="accordion-header">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#personality">
-                                        <i class="bi bi-person-lines-fill me-2 collapse-icon"></i> Personality
-                                    </button>
-                                </h2>
-                                <div id="personality" class="accordion-collapse collapse" data-bs-parent="#characterAccordion">
-                                    <div class="accordion-body">
-                                        <div class="mb-3">
-                                            <label for="traitsList" class="form-label">Traits</label>
-                                            <input type="text" class="form-control" id="traitsList" placeholder="Comma-separated list of traits">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="personalityDesc" class="form-label">Personality Description</label>
-                                            <textarea class="form-control" id="personalityDesc" rows="6"></textarea>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Intimacy Section -->
-                            <div class="accordion-item section-intimacy">
-                                <h2 class="accordion-header">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#intimacy">
-                                        <i class="bi bi-heart me-2 collapse-icon"></i> Intimacy
-                                    </button>
-                                </h2>
-                                <div id="intimacy" class="accordion-collapse collapse" data-bs-parent="#characterAccordion">
-                                    <div class="accordion-body">
-                                        <div class="mb-3">
-                                            <label for="intimacyDesc" class="form-label">Intimacy Preferences</label>
-                                            <textarea class="form-control" id="intimacyDesc" rows="6"></textarea>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Dialogue Section -->
-                            <div class="accordion-item section-dialogue">
-                                <h2 class="accordion-header">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#dialogue">
-                                        <i class="bi bi-chat-square-quote me-2 collapse-icon"></i> Dialogue
-                                    </button>
-                                </h2>
-                                <div id="dialogue" class="accordion-collapse collapse" data-bs-parent="#characterAccordion">
-                                    <div class="accordion-body">
-                                        <div class="mb-3">
-                                            <label for="dialogueSamples" class="form-label">Dialogue Samples (one per line)</label>
-                                            <textarea class="form-control" id="dialogueSamples" rows="6" placeholder="Example: *laughs softly* I suppose you're right..."></textarea>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Notes Section -->
-                            <div class="accordion-item section-notes">
-                                <h2 class="accordion-header">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#notes">
-                                        <i class="bi bi-journal-text me-2 collapse-icon"></i> Notes
-                                    </button>
-                                </h2>
-                                <div id="notes" class="accordion-collapse collapse" data-bs-parent="#characterAccordion">
-                                    <div class="accordion-body">
-                                        <div class="mb-3">
-                                            <label for="notesText" class="form-label">Additional Notes</label>
-                                            <textarea class="form-control" id="notesText" rows="5"></textarea>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="tab-pane fade" id="preview" role="tabpanel">
-                        <div class="position-relative">
-                            <div class="text-preview" id="jsonPreview"></div>
-                            <div class="token-counter" id="tokenCounter">0 tokens</div>
-                        </div>
-                        <button class="btn btn-primary mt-3" id="copyJsonBtn">
-                            <i class="bi bi-clipboard"></i> Copy JSON
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="controls">
+      <button id="themeToggle" class="btn" title="Toggle Day / Night" aria-label="Toggle theme">🌗</button>
+      <button id="resetBtn" class="btn" title="Reset all fields" aria-label="Reset form">Reset</button>
     </div>
+  </header>
 
-    <script type="module">
-        document.addEventListener('DOMContentLoaded', async function() {
-            // Check offline status
-            const offlineMessage = document.getElementById('offlineMessage');
-            if (!navigator.onLine) {
-                offlineMessage.style.display = 'block';
-            }
-            
-            window.addEventListener('online', () => {
-                offlineMessage.style.display = 'none';
-            });
-            
-            window.addEventListener('offline', () => {
-                offlineMessage.style.display = 'block';
-            });
+  <main class="left">
+    <div class="card">
+      <!-- NPCs -->
+      <section class="accordion" id="acc-npcs">
+        <div class="acc-head" data-target="npcs" tabindex="0">
+          <div><div class="acc-title">NPCs</div><div class="tiny">One NPC per line</div></div>
+          <div class="tiny">toggle</div>
+        </div>
+        <div class="acc-body" id="body-npcs">
+          <label for="npcsInput">NPCs block</label>
+          <textarea id="npcsInput" placeholder="e.g. &lt;Name, black hair, green eyes, tall, gruff, guard&gt;"></textarea>
+        </div>
+      </section>
 
-            // UI Elements
-            const avatarContainer = document.getElementById('avatarContainer');
-            const imageInput = document.getElementById('imageInput');
-            const importInput = document.getElementById('importInput');
-            const jsonPreview = document.getElementById('jsonPreview');
-            const tokenCounter = document.getElementById('tokenCounter');
-            const copyJsonBtn = document.getElementById('copyJsonBtn');
-            const exportBtn = document.getElementById('exportBtn');
-            const importBtn = document.getElementById('importBtn');
-            const themeToggle = document.getElementById('themeToggle');
-            const undoBtn = document.getElementById('undoBtn');
-            const redoBtn = document.getElementById('redoBtn');
-            const traitsList = document.getElementById('traitsList');
-            const selectedTraitsContainer = document.getElementById('selectedTraits');
-            const jsFallback = document.getElementById('jsFallback');
-            
-            // Personality traits
-            const traitButtons = document.querySelectorAll('.trait-button');
-            const selectedTraits = new Set();
+      <!-- Core -->
+      <section class="accordion" id="acc-core">
+        <div class="acc-head" data-target="core" tabindex="0">
+          <div><div class="acc-title">Core identity</div><div class="tiny">Name, aliases, species, role</div></div>
+          <div class="tiny">toggle</div>
+        </div>
+        <div class="acc-body" id="body-core">
+          <div class="row">
+            <div>
+              <label>Full Name</label>
+              <input id="fullName" type="text" placeholder="First Last" />
+            </div>
+            <div>
+              <label>Aliases</label>
+              <input id="aliases" type="text" placeholder="nicknames, callsigns ..." />
+            </div>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <div><label>Species (optional)</label><input id="species" type="text" /></div>
+            <div><label>Age</label><input id="age" type="text" /></div>
+          </div>
+          <div style="margin-top:10px"><label>Occupation / Role</label><input id="role" type="text" /></div>
+          <div style="margin-top:10px"><label>Current Residence</label><input id="residence" type="text" placeholder="location + short description" /></div>
+        </div>
+      </section>
 
-            // History tracking
-            let history = [];
-            let historyIndex = -1;
-            let isReverting = false;
+      <!-- Appearance -->
+      <section class="accordion" id="acc-appearance">
+        <div class="acc-head" data-target="appearance" tabindex="0">
+          <div><div class="acc-title">Appearance & Clothing</div><div class="tiny">Scent, clothing, marks</div></div>
+          <div class="tiny">toggle</div>
+        </div>
+        <div class="acc-body" id="body-appearance">
+          <label>Appearance (brief)</label>
+          <textarea id="appearance" placeholder="Height, build, hair, eyes, distinguishing marks..."></textarea>
+          <div class="row" style="margin-top:10px">
+            <div><label>Scent</label><input id="scent" type="text" placeholder="wood smoke, sea salt..." /></div>
+            <div><label>Clothing</label><input id="clothing" type="text" placeholder="uniform, leather pants..." /></div>
+          </div>
+        </div>
+      </section>
 
-            // Try loading external libraries
-            let pako, PNGChunksExtract, PNGChunksEncode, bootstrap;
-            let librariesLoaded = false;
+      <!-- Backstory -->
+      <section class="accordion" id="acc-backstory">
+        <div class="acc-head" data-target="backstory" tabindex="0">
+          <div><div class="acc-title">Backstory</div><div class="tiny">Concise but complete</div></div>
+          <div class="tiny">toggle</div>
+        </div>
+        <div class="acc-body" id="body-backstory">
+          <label>Backstory</label>
+          <textarea id="backstory" placeholder="Use bullets or paragraphs"></textarea>
+        </div>
+      </section>
 
-            // Create a fallback mode if libraries fail to load
-            try {
-                pako = await import('pako');
-                PNGChunksExtract = await import('png-chunks-extract');
-                PNGChunksEncode = await import('png-chunks-encode');
-                bootstrap = await import('bootstrap');
-                librariesLoaded = true;
-            } catch (error) {
-                console.error('Failed to load some dependencies:', error);
-                jsFallback.classList.add('show');
-            }
+      <!-- Relationships -->
+      <section class="accordion" id="acc-relationships">
+        <div class="acc-head" data-target="relationships" tabindex="0">
+          <div><div class="acc-title">Relationships</div><div class="tiny">One per paragraph</div></div>
+          <div class="tiny">toggle</div>
+        </div>
+        <div class="acc-body" id="body-relationships">
+          <label>Relationships</label>
+          <textarea id="relationships" placeholder='e.g. "User - loyal companion. \"I would die for you.\"'></textarea>
+        </div>
+      </section>
 
-            // Initialize theme
-            initTheme();
+      <!-- Personality -->
+      <section class="accordion" id="acc-personality">
+        <div class="acc-head" data-target="personality" tabindex="0">
+          <div><div class="acc-title">Personality</div><div class="tiny">Traits, Likes, Dislikes, Insecurities, Behavior, Opinion</div></div>
+          <div class="tiny">toggle</div>
+        </div>
+        <div class="acc-body open" id="body-personality">
+          <label>Traits (click buttons to add)</label>
+          <textarea id="traits" placeholder="Selected traits appear here (trait1, trait2, ...)" style="min-height:60px"></textarea>
 
-            // Initial load
-            loadFromStorage();
-            updateSelectedTraitsDisplay();
+          <div class="trait-cat">Quick assistant — categories (click to open)</div>
+          <div id="traitsContainer" class="traits" aria-hidden="false">
+            <!-- JSON-driven accordions will be injected here -->
+            <div class="tiny" style="width:100%;">Loading trait categories…</div>
+          </div>
 
-            // Event Listeners
-            avatarContainer.addEventListener('click', () => imageInput.click());
-            imageInput.addEventListener('change', handleImageUpload);
-            avatarContainer.addEventListener('dragover', handleDragOver);
-            avatarContainer.addEventListener('drop', handleDrop);
-            
-            if (librariesLoaded) {
-                importBtn.addEventListener('click', () => importInput.click());
-                exportBtn.addEventListener('click', exportToPNG);
-                importInput.addEventListener('change', importFromPNG);
-            } else {
-                exportBtn.disabled = true;
-                importBtn.disabled = true;
-                exportBtn.title = "Feature unavailable - libraries didn't load";
-                importBtn.title = "Feature unavailable - libraries didn't load";
-            }
-            
-            copyJsonBtn.addEventListener('click', copyJSONToClipboard);
-            themeToggle.addEventListener('change', toggleTheme);
+          <div class="tiny hint" style="margin-top:10px">Use the category headers to expand lists. Click a trait to toggle it on/off.</div>
 
-            // All input fields that should trigger save and preview update
-            const allInputs = document.querySelectorAll('input, textarea, select');
-            allInputs.forEach(input => {
-                input.addEventListener('input', () => {
-                    saveState();
-                    updatePreview();
-                });
-            });
+          <div style="margin-top:12px">
+            <label>Likes</label>
+            <textarea id="likes" placeholder="Likes..."></textarea>
 
-            // Personality trait buttons
-            traitButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const trait = this.getAttribute('data-trait');
-                    toggleTraitSelection(trait);
-                });
-            });
+            <label style="margin-top:8px">Dislikes</label>
+            <textarea id="dislikes" placeholder="Dislikes..."></textarea>
 
-            // Undo/Redo buttons
-            undoBtn.addEventListener('click', () => {
-                if (historyIndex > 0) {
-                    isReverting = true;
-                    historyIndex--;
-                    loadState(history[historyIndex]);
-                    isReverting = false;
-                    updateUndoRedoButtons();
-                }
-            });
+            <label style="margin-top:8px">Insecurities</label>
+            <textarea id="insecurities" placeholder="Insecurities..."></textarea>
 
-            redoBtn.addEventListener('click', () => {
-                if (historyIndex < history.length - 1) {
-                    isReverting = true;
-                    historyIndex++;
-                    loadState(history[historyIndex]);
-                    isReverting = false;
-                    updateUndoRedoButtons();
-                }
-            });
+            <label style="margin-top:8px">Physical behaviour</label>
+            <textarea id="physicalBehaviour" placeholder="Quirks, posture, habits..."></textarea>
 
-            // Functions
-            function initTheme() {
-                const savedTheme = localStorage.getItem('theme');
-                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                
-                if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-                    document.body.classList.add('dark-theme');
-                    themeToggle.checked = true;
-                } else {
-                    document.body.classList.remove('dark-theme');
-                    themeToggle.checked = false;
-                }
-            }
+            <label style="margin-top:8px">Opinion</label>
+            <textarea id="opinion" placeholder="Strong beliefs, religion, politics (optional)..."></textarea>
+          </div>
+        </div>
+      </section>
 
-            function toggleTheme() {
-                if (themeToggle.checked) {
-                    document.body.classList.add('dark-theme');
-                    localStorage.setItem('theme', 'dark');
-                } else {
-                    document.body.classList.remove('dark-theme');
-                    localStorage.setItem('theme', 'light');
-                }
-                updatePreview();
-            }
+      <!-- Intimacy -->
+      <section class="accordion" id="acc-intimacy">
+        <div class="acc-head" data-target="intimacy" tabindex="0">
+          <div><div class="acc-title">Intimacy (optional)</div><div class="tiny">Turn-ons / During Sex</div></div>
+          <div class="tiny">toggle</div>
+        </div>
+        <div class="acc-body" id="body-intimacy">
+          <label>Turn-ons</label>
+          <textarea id="turnOns" placeholder="Turn-ons..."></textarea>
+          <label style="margin-top:8px">During Sex</label>
+          <textarea id="duringSex" placeholder="Behaviour during sex..."></textarea>
+        </div>
+      </section>
 
-            function toggleTraitSelection(trait) {
-                if (selectedTraits.has(trait)) {
-                    selectedTraits.delete(trait);
-                } else {
-                    selectedTraits.add(trait);
-                }
-                
-                updateSelectedTraitsDisplay();
-                updateTraitsInputField();
-                
-                // Update button states
-                traitButtons.forEach(button => {
-                    if (button.getAttribute('data-trait') === trait) {
-                        button.classList.toggle('selected', selectedTraits.has(trait));
-                    }
-                });
-                
-                saveState();
-            }
+      <!-- Dialogue -->
+      <section class="accordion" id="acc-dialogue">
+        <div class="acc-head" data-target="dialogue" tabindex="0">
+          <div><div class="acc-title">Dialogue</div><div class="tiny">Speech patterns & sample lines</div></div>
+          <div class="tiny">toggle</div>
+        </div>
+        <div class="acc-body" id="body-dialogue">
+          <p class="tiny">[These are merely examples of how <strong id="charNameUpper">CHARACTER NAME</strong> may speak and should NOT be used verbatim.]</p>
 
-            function updateSelectedTraitsDisplay() {
-                selectedTraitsContainer.innerHTML = '';
-                
-                if (selectedTraits.size === 0) {
-                    selectedTraitsContainer.innerHTML = '<small class="text-muted">No traits selected</small>';
-                    return;
-                }
-                
-                selectedTraits.forEach(trait => {
-                    const chip = document.createElement('span');
-                    chip.className = 'trait-chip';
-                    chip.innerHTML = `
-                        ${trait}
-                        <button class="remove-trait" data-trait="${trait}">
-                            <i class="bi bi-x"></i>
-                        </button>
-                    `;
-                    selectedTraitsContainer.appendChild(chip);
-                });
-                
-                // Add event listeners to remove buttons
-                document.querySelectorAll('.remove-trait').forEach(button => {
-                    button.addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        const trait = this.getAttribute('data-trait');
-                        toggleTraitSelection(trait);
-                    });
-                });
-            }
+          <label>Greeting Example</label>
+          <textarea id="greetingExample" placeholder='e.g. "Good day, stranger."'></textarea>
 
-            function updateTraitsInputField() {
-                traitsList.value = Array.from(selectedTraits).join(', ');
-                traitsList.dispatchEvent(new Event('input'));
-            }
+          <label style="margin-top:8px">Surprised</label>
+          <textarea id="surprised" placeholder="e.g. &quot;What?! That can't be...&quot;"></textarea>
 
-            function handleImageUpload(e) {
-                const file = e.target.files[0];
-                if (file && file.type.match('image.*')) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        avatarContainer.innerHTML = `<img src="${e.target.result}" alt="Character Avatar">`;
-                        saveState();
-                    };
-                    reader.readAsDataURL(file);
-                }
-            }
+          <label style="margin-top:8px" for="stressed">Stressed</label>
+          <textarea id="stressed" placeholder="e.g. 'I don't have time for this!'"></textarea>
 
-            function handleDragOver(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                avatarContainer.style.borderColor = 'var(--primary-color)';
-            }
 
-            function handleDrop(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                avatarContainer.style.borderColor = '#ccc';
-                
-                const file = e.dataTransfer.files[0];
-                if (file && file.type.match('image.*')) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        avatarContainer.innerHTML = `<img src="${e.target.result}" alt="Character Avatar">`;
-                        saveState();
-                    };
-                    reader.readAsDataURL(file);
-                }
-            }
+          <label style="margin-top:8px">Memory</label>
+          <textarea id="memory" placeholder='Short memory trigger line...'></textarea>
 
-            function updatePreview() {
-                const json = generateJSON();
-                jsonPreview.textContent = JSON.stringify(json, null, 2);
-                
-                // Simple token counter (approximation)
-                const text = JSON.stringify(json);
-                const tokenCount = Math.ceil(text.split(/\s+/).length * 0.75);
-                tokenCounter.textContent = `${tokenCount} tokens`;
-            }
+          <label style="margin-top:8px">Opinion</label>
+          <textarea id="opinionDialogue" placeholder='Short opinion line...'></textarea>
+        </div>
+      </section>
 
-            function generateJSON() {
-                const json = {
-                    meta: {
-                        version: "1.0",
-                        created: new Date().toISOString()
-                    },
-                    basic: {
-                        name: document.getElementById('characterName').value.trim() || "Unnamed",
-                        aliases: document.getElementById('aliases').value.split(',').map(s => s.trim()).filter(Boolean),
-                        species: document.getElementById('species').value.trim(),
-                        nationality: document.getElementById('nationality').value.trim(),
-                        ethnicity: document.getElementById('ethnicity').value.trim(),
-                        age: document.getElementById('age').value.trim(),
-                        occupation: document.getElementById('occupation').value.trim()
-                    },
-                    appearance: {
-                        description: document.getElementById('appearanceDesc').value.trim(),
-                        scent: document.getElementById('scent').value.trim(),
-                        clothing: document.getElementById('clothing').value.trim()
-                    },
-                    backstory: {
-                        background: document.getElementById('backstoryText').value.trim(),
-                        residence: document.getElementById('currentResidence').value.trim()
-                    },
-                    relationships: {
-                        characters: document.getElementById('relationshipsText').value.trim().split('\n').filter(Boolean).map(line => {
-                            const parts = line.split('-').map(s => s.trim());
-                            return {
-                                name: parts[0] || "",
-                                relationship: parts[1] || ""
-                            };
-                        }),
-                        npcs: document.getElementById('npcsText').value.trim().split('\n').filter(Boolean).map(line => {
-                            return line.trim();
-                        })
-                    },
-                    personality: {
-                        traits: Array.from(selectedTraits),
-                        description: document.getElementById('personalityDesc').value.trim()
-                    },
-                    intimacy: {
-                        preferences: document.getElementById('intimacyDesc').value.trim()
-                    },
-                    dialogue: {
-                        samples: document.getElementById('dialogueSamples').value.trim().split('\n').filter(Boolean)
-                    },
-                    notes: {
-                        additional: document.getElementById('notesText').value.trim()
-                    }
-                };
+      <!-- Notes -->
+      <section class="accordion" id="acc-notes">
+        <div class="acc-head" data-target="notes" tabindex="0">
+          <div><div class="acc-title">Notes</div><div class="tiny">Fun facts, allergies, secrets</div></div>
+          <div class="tiny">toggle</div>
+        </div>
+        <div class="acc-body" id="body-notes">
+          <label>Notes</label>
+          <textarea id="notes" placeholder="Any extra notes..."></textarea>
+        </div>
+      </section>
+    </div>
+  </main>
 
-                return json;
-            }
+  <aside class="right">
+    <div class="right-grid">
+      <div class="muted-block card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div class="tiny">Template Tabs</div>
+            <div style="font-weight:700">Scenario / Messages / Preview</div>
+          </div>
+          <div>
+            <button id="saveBtn" class="btn primary tiny">Save</button>
+          </div>
+        </div>
 
-            function copyJSONToClipboard() {
-                const json = generateJSON();
-                navigator.clipboard.writeText(JSON.stringify(json, null, 2)).then(() => {
-                    showToast('Success', 'JSON copied to clipboard!');
-                }).catch(err => {
-                    showToast('Error', 'Failed to copy JSON: ' + err);
-                });
-            }
+        <div class="tabs" role="tablist" aria-label="Editor tabs" style="margin-top:12px">
+          <div class="tab active" data-tab="scenario">Scenario / Setting</div>
+          <div class="tab" data-tab="initial">Initial Message</div>
+          <div class="tab" data-tab="examples">Example Dialogue</div>
+          <div class="tab" data-tab="preview">Preview</div>
+        </div>
 
-            function exportToPNG() {
-                if (!librariesLoaded) {
-                    showToast('Error', 'Export feature unavailable - required libraries failed to load');
-                    return;
-                }
+        <div id="tabScenario" style="display:block">
+          <label>Scenario / Setting</label>
+          <textarea id="scenario" placeholder="[world, era, tech, beliefs...]" style="height:160px"></textarea>
+          <div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end">
+            <button class="btn" id="copyScenario">Copy</button>
+          </div>
+        </div>
 
-                try {
-                    const json = generateJSON();
-                    const jsonStr = JSON.stringify(json);
-                    
-                    // Create canvas for the card
-                    const canvas = document.createElement('canvas');
-                    canvas.width = 512;
-                    canvas.height = 512;
-                    const ctx = canvas.getContext('2d');
-                    
-                    // Draw the card background
-                    ctx.fillStyle = document.body.classList.contains('dark-theme') ? '#1e1e1e' : '#ffffff';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    
-                    // Add character name
-                    ctx.fillStyle = document.body.classList.contains('dark-theme') ? '#ffffff' : '#333333';
-                    ctx.font = 'bold 24px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(json.basic.name, canvas.width/2, 40);
-                    
-                    // Add avatar if exists
-                    if (avatarContainer.querySelector('img')) {
-                        const img = new Image();
-                        img.onload = function() {
-                            // Draw the image centered
-                            const size = Math.min(img.width, img.height, 300);
-                            ctx.drawImage(
-                                img, 
-                                (canvas.width - size) / 2, 
-                                60, 
-                                size, 
-                                size
-                            );
-                            
-                            // Add traits below
-                            if (selectedTraits.size > 0) {
-                                ctx.font = '16px Arial';
-                                ctx.fillText('Traits: ' + Array.from(selectedTraits).join(', '), canvas.width/2, 420);
-                            }
-                            
-                            // Convert canvas to Blob (binary data)
-                            canvas.toBlob((blob) => {
-                                encodePNGWithMetadata(blob, jsonStr);
-                            }, 'image/png');
-                        };
-                        img.crossOrigin = 'Anonymous';
-                        img.src = avatarContainer.querySelector('img').src;
-                    } else {
-                        // Convert canvas to Blob (binary data)
-                        canvas.toBlob((blob) => {
-                            encodePNGWithMetadata(blob, jsonStr);
-                        }, 'image/png');
-                    }
-                } catch (error) {
-                    showToast('Export Error', 'Failed to export PNG: ' + error.message);
-                    console.error(error);
-                }
-            }
+        <div id="tabInitial" style="display:none">
+          <label>Initial Message</label>
+          <textarea id="initial" placeholder="First message the character sends..." style="height:140px"></textarea>
+          <div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end">
+            <button class="btn" id="copyInitial">Copy</button>
+          </div>
+        </div>
 
-            function encodePNGWithMetadata(blob, jsonStr) {
-                // Read the blob as an array buffer
-                const reader = new FileReader();
-                reader.onload = function() {
-                    try {
-                        const arrayBuffer = reader.result;
-                        const bytes = new Uint8Array(arrayBuffer);
-                        
-                        // Extract existing chunks
-                        let chunks;
-                        try {
-                            chunks = PNGChunksExtract.default(bytes);
-                        } catch (e) {
-                            chunks = [];
-                        }
-                        
-                        // Create metadata chunk with base64 encoded JSON
-                        const base64Json = btoa(encodeURIComponent(jsonStr));
-                        const metadataChunk = {
-                            name: 'tEXt',
-                            data: stringToBytes('character_data\0' + base64Json)
-                        };
-                        
-                        // Insert metadata chunk before the IEND chunk
-                        chunks.splice(-1, 0, metadataChunk);
-                        
-                        // Encode PNG with our metadata
-                        const pngData = PNGChunksEncode.default(chunks);
-                        
-                        // Create download link
-                        downloadPNG(pngData);
-                        
-                        showToast('Export Complete', 'Character card exported with embedded metadata!');
-                    } catch (error) {
-                        showToast('Export Error', 'Failed to encode PNG: ' + error.message);
-                        console.error(error);
-                    }
-                };
-                reader.onerror = function() {
-                    showToast('Export Error', 'Failed to read image data');
-                };
-                reader.readAsArrayBuffer(blob);
-            }
+        <div id="tabExamples" style="display:none">
+          <label>Example Dialogue</label>
+          <textarea id="examples" placeholder="Short sample exchanges..." style="height:140px"></textarea>
+          <div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end">
+            <button class="btn" id="copyExamples">Copy</button>
+          </div>
+        </div>
 
-            function stringToBytes(str) {
-                const bytes = new Uint8Array(str.length);
-                for (let i = 0; i < str.length; i++) {
-                    bytes[i] = str.charCodeAt(i);
-                }
-                return bytes;
-            }
+        <div id="tabPreview" style="display:none;margin-top:8px">
+          <div class="tiny">Live assembled template</div>
+          <div id="previewBox" class="preview" aria-live="polite"></div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+            <button class="btn primary" id="copyAll">Copy Full Template</button>
+          </div>
+        </div>
+      </div>
 
-            function downloadPNG(pngData) {
-                const blob = new Blob([pngData], { type: 'image/png' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = (document.getElementById('characterName').value || 'character') + '.png';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                setTimeout(() => {
-                    URL.revokeObjectURL(url);
-                }, 100);
-            }
+      <div class="muted-block card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div class="tiny">Quick export</div>
+          <div class="tiny">Clipboard only</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn" id="copyPersonality2">Copy Personality</button>
+          <button class="btn" id="copyScenario2">Copy Scenario</button>
+          <button class="btn" id="copyInitial2">Copy Initial</button>
+          <button class="btn" id="copyExamples2">Copy Examples</button>
+        </div>
+      </div>
 
-            function importFromPNG(e) {
-                if (!librariesLoaded) {
-                    showToast('Error', 'Import feature unavailable - required libraries failed to load');
-                    return;
-                }
+      <div class="muted-block card">
+        <div><strong>Autosave</strong></div>
+        <div class="tiny hint">Data stored locally. Use Reset to clear.</div>
+      </div>
 
-                const file = e.target.files[0];
-                if (!file || !file.type.match('image.*')) {
-                    showToast('Import Error', 'Please select a valid PNG file.');
-                    return;
-                }
-                
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    try {
-                        const arrayBuffer = e.target.result;
-                        if (!arrayBuffer) {
-                            throw new Error('Failed to read file');
-                        }
-                        
-                        const bytes = new Uint8Array(arrayBuffer);
-                        
-                        // Extract chunks
-                        let chunks;
-                        try {
-                            chunks = PNGChunksExtract.default(bytes);
-                        } catch (err) {
-                            showToast('Import Error', 'Not a valid PNG file.');
-                            return;
-                        }
-                        
-                        // Find our metadata chunk
-                        const textChunks = chunks.filter(chunk => chunk.name === 'tEXt');
-                        let metadataChunk = null;
-                        
-                        for (const chunk of textChunks) {
-                            const textData = bytesToString(chunk.data);
-                            if (textData.startsWith('character_data\0')) {
-                                metadataChunk = textData;
-                                break;
-                            }
-                        }
-                        
-                        if (!metadataChunk) {
-                            showToast('Import Info', 'No character data found in this PNG.');
-                            return;
-                        }
-                        
-                        try {
-                            // Extract and decode the JSON data
-                            const base64Json = metadataChunk.substring('character_data\0'.length);
-                            const jsonStr = decodeURIComponent(atob(base64Json));
-                            const json = JSON.parse(jsonStr);
-                            
-                            // Show preview first
-                            jsonPreview.textContent = JSON.stringify(json, null, 2);
-                            document.getElementById('preview-tab').click();
-                            
-                            // Ask for confirmation before loading
-                            const confirmation = confirm('Character data found in PNG. Do you want to load it?');
-                            if (confirmation) {
-                                parseCharacterJSON(json);
-                            }
-                        } catch (err) {
-                            showToast('Import Error', 'Failed to parse embedded character data.');
-                            console.error(err);
-                        }
-                    } catch (error) {
-                        showToast('Import Error', 'Failed to process PNG file: ' + error.message);
-                        console.error(error);
-                    }
-                };
-                reader.onerror = function() {
-                    showToast('Import Error', 'Failed to read file');
-                };
-                reader.readAsArrayBuffer(file);
-            }
+      <div class="muted-block card">
+        <div class="tiny">Character Preview</div>
+        <div id="tokenCounter" class="tiny" style="margin-top:8px">0 chars (approx)</div>
+      </div>
+    </div>
+  </aside>
 
-            function bytesToString(bytes) {
-                return Array.from(bytes).map(b => String.fromCharCode(b)).join('');
-            }
+  <footer style="grid-column:1/-1;margin-top:14px;color:var(--muted);font-size:13px;text-align:center">
+    Tip: click trait buttons to toggle. Use Preview to copy the full template.
+  </footer>
+</div>
 
-            function parseCharacterJSON(json) {
-                try {
-                    // Clear existing traits
-                    selectedTraits.clear();
-                    
-                    // Basic Info
-                    if (json.basic) {
-                        document.getElementById('characterName').value = json.basic.name || '';
-                        document.getElementById('aliases').value = json.basic.aliases?.join(', ') || '';
-                        document.getElementById('species').value = json.basic.species || '';
-                        document.getElementById('nationality').value = json.basic.nationality || '';
-                        document.getElementById('ethnicity').value = json.basic.ethnicity || '';
-                        document.getElementById('age').value = json.basic.age || '';
-                        document.getElementById('occupation').value = json.basic.occupation || '';
-                    }
-                    
-                    // Appearance
-                    if (json.appearance) {
-                        document.getElementById('appearanceDesc').value = json.appearance.description || '';
-                        document.getElementById('scent').value = json.appearance.scent || '';
-                        document.getElementById('clothing').value = json.appearance.clothing || '';
-                    }
-                    
-                    // Backstory
-                    if (json.backstory) {
-                        document.getElementById('backstoryText').value = json.backstory.background || '';
-                        document.getElementById('currentResidence').value = json.backstory.residence || '';
-                    }
-                    
-                    // Relationships
-                    if (json.relationships) {
-                        document.getElementById('relationshipsText').value = 
-                            json.relationships.characters?.map(c => `${c.name} - ${c.relationship}`).join('\n') || '';
-                        document.getElementById('npcsText').value = 
-                            json.relationships.npcs?.join('\n') || '';
-                    }
-                    
-                    // Personality
-                    if (json.personality) {
-                        if (json.personality.traits) {
-                            json.personality.traits.forEach(t => selectedTraits.add(t));
-                        }
-                        document.getElementById('personalityDesc').value = json.personality.description || '';
-                    }
-                    
-                    // Intimacy
-                    if (json.intimacy) {
-                        document.getElementById('intimacyDesc').value = json.intimacy.preferences || '';
-                    }
-                    
-                    // Dialogue
-                    if (json.dialogue) {
-                        document.getElementById('dialogueSamples').value = json.dialogue.samples?.join('\n') || '';
-                    }
-                    
-                    // Notes
-                    if (json.notes) {
-                        document.getElementById('notesText').value = json.notes.additional || '';
-                    }
-                    
-                    // Update UI
-                    updateSelectedTraitsDisplay();
-                    updateTraitsInputField();
-                    saveState();
-                    updatePreview();
-                    
-                    // Show success message
-                    showToast('Success', 'Character loaded successfully!');
-                } catch (err) {
-                    showToast('Import Error', 'Failed to parse JSON data: ' + err.message);
-                    console.error(err);
-                }
-            }
+<script>
+/* ---------- UTIL ---------- */
+const $ = (sel, ctx=document) => ctx.querySelector(sel);
+const $$ = (sel, ctx=document) => Array.from((ctx||document).querySelectorAll(sel));
 
-            function showToast(title, message) {
-                // Create toast dynamically
-                const toastEl = document.createElement('div');
-                toastEl.className = 'toast show';
-                toastEl.setAttribute('role', 'alert');
-                toastEl.setAttribute('aria-live', 'assertive');
-                toastEl.setAttribute('aria-atomic', 'true');
-                toastEl.style.position = 'fixed';
-                toastEl.style.top = '20px';
-                toastEl.style.right = '20px';
-                toastEl.style.zIndex = '1100';
-                toastEl.style.minWidth = '300px';
-                
-                toastEl.innerHTML = `
-                    <div class="toast-header">
-                        <strong class="me-auto">${title}</strong>
-                        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
-                    </div>
-                    <div class="toast-body">
-                        ${message}
-                    </div>
-                `;
-                
-                document.body.appendChild(toastEl);
-                
-                // Auto-remove after 5 seconds
-                setTimeout(() => {
-                    toastEl.remove();
-                }, 5000);
-                
-                // Close button
-                toastEl.querySelector('.btn-close').addEventListener('click', () => {
-                    toastEl.remove();
-                });
-            }
+/* ---------- TABS (right column) ---------- */
+$$('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    $$('.tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    const target = tab.dataset.tab;
+    $('#tabScenario').style.display = (target==='scenario') ? 'block' : 'none';
+    $('#tabInitial').style.display = (target==='initial') ? 'block' : 'none';
+    $('#tabExamples').style.display = (target==='examples') ? 'block' : 'none';
+    $('#tabPreview').style.display = (target==='preview') ? 'block' : 'none';
+    if(target==='preview') updatePreview();
+  });
+});
 
-            function saveToStorage() {
-                const state = {};
-                allInputs.forEach(input => {
-                    state[input.id] = input.value;
-                });
-                
-                // Save avatar if exists
-                if (avatarContainer.querySelector('img')) {
-                    state.avatar = avatarContainer.querySelector('img').src;
-                }
-                
-                // Save selected traits
-                state.selectedTraits = Array.from(selectedTraits);
-                
-                localStorage.setItem('characterData', JSON.stringify(state));
-            }
+/* ---------- ACCORDIONS ---------- */
+$$('.acc-head').forEach(h=>{
+  h.addEventListener('click', ()=>{
+    const t = h.dataset.target;
+    const body = document.getElementById('body-'+t);
+    if(!body) return;
+    body.classList.toggle('open');
+  });
+  h.addEventListener('keypress', (e)=>{ if(e.key==='Enter') h.click(); });
+});
 
-            function loadFromStorage() {
-                const savedData = localStorage.getItem('characterData');
-                if (savedData) {
-                    const state = JSON.parse(savedData);
-                    loadState(state);
-                    
-                    // Add to history
-                    history = [state];
-                    historyIndex = 0;
-                    updateUndoRedoButtons();
-                }
-                
-                updatePreview();
-            }
+/* ---------- THEME TOGGLE ---------- */
+const themeToggle = $('#themeToggle');
+function setTheme(t){ document.body.setAttribute('data-theme', t); localStorage.setItem('oc_theme', t); }
+themeToggle.addEventListener('click', ()=>{
+  const cur = document.body.getAttribute('data-theme') || 'light';
+  setTheme(cur === 'light' ? 'dark' : 'light');
+});
+const savedTheme = localStorage.getItem('oc_theme') || 'light';
+setTheme(savedTheme);
 
-            function loadState(state) {
-                Object.keys(state).forEach(key => {
-                    if (key === 'avatar') {
-                        avatarContainer.innerHTML = `<img src="${state.avatar}" alt="Character Avatar">`;
-                    } else if (key === 'selectedTraits') {
-                        selectedTraits.clear();
-                        state.selectedTraits.forEach(trait => selectedTraits.add(trait));
-                        updateSelectedTraitsDisplay();
-                    } else if (document.getElementById(key)) {
-                        document.getElementById(key).value = state[key] || '';
-                    }
-                });
-                updatePreview();
-            }
+/* ---------- FIELDS to save ---------- */
+const fields = [
+  'npcsInput','fullName','aliases','species','age','role','residence',
+  'appearance','scent','clothing','backstory','relationships',
+  'traits','likes','dislikes','insecurities','physicalBehaviour','opinion',
+  'turnOns','duringSex',
+  'greetingExample','surprised','stressed','memory','opinionDialogue',
+  'notes','scenario','initial','examples'
+];
 
-            function saveState() {
-                if (isReverting) return;
-                
-                const currentState = {};
-                allInputs.forEach(input => {
-                    currentState[input.id] = input.value;
-                });
-                
-                // Save avatar if exists
-                if (avatarContainer.querySelector('img')) {
-                    currentState.avatar = avatarContainer.querySelector('img').src;
-                }
-                
-                // Save selected traits
-                currentState.selectedTraits = Array.from(selectedTraits);
-                
-                // Only save to history if state has changed
-                if (history.length === 0 || JSON.stringify(history[historyIndex]) !== JSON.stringify(currentState)) {
-                    // Remove any states after the current index
-                    history = history.slice(0, historyIndex + 1);
-                    
-                    // Add new state
-                    history.push(currentState);
-                    historyIndex++;
-                    
-                    // Limit history size to prevent memory issues
-                    if (history.length > 50) {
-                        history = history.slice(1);
-                        historyIndex--;
-                    }
-                    
-                    updateUndoRedoButtons();
-                }
-                
-                saveToStorage();
-            }
+function saveAll(){
+  fields.forEach(f=>{
+    const el = $('#'+f); if(!el) return;
+    localStorage.setItem('oc_'+f, el.value);
+  });
+  updatePreview();
+  
+  // Show save confirmation
+  const notice = document.createElement('div');
+  notice.textContent = '✓ Saved locally';
+  notice.style.position = 'fixed';
+  notice.style.right = '20px';
+  notice.style.bottom = '20px';
+  notice.style.background = 'var(--success)';
+  notice.style.color = 'white';
+  notice.style.padding = '8px 16px';
+  notice.style.borderRadius = '8px';
+  notice.style.fontWeight = '600';
+  notice.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+  notice.style.zIndex = '1000';
+  notice.style.animation = 'fadeIn 0.3s ease';
+  document.body.appendChild(notice);
+  setTimeout(()=>{
+    notice.style.animation = 'fadeIn 0.3s ease reverse';
+    setTimeout(()=>notice.remove(), 300);
+  }, 2000);
+}
 
-            function updateUndoRedoButtons() {
-                undoBtn.disabled = historyIndex <= 0;
-                redoBtn.disabled = historyIndex >= history.length - 1;
-            }
+function loadAll(){
+  fields.forEach(f=>{
+    const el = $('#'+f); if(!el) return;
+    const v = localStorage.getItem('oc_'+f);
+    if(v!==null) el.value = v;
+  });
+  updatePreview();
+}
 
-            // Initialize
-            updatePreview();
-            updateUndoRedoButtons();
-        });
-    </script>
+/* ---------- COPY helpers ---------- */
+async function copyText(text){
+  try{
+    await navigator.clipboard.writeText(text);
+    
+    // Show copy confirmation
+    const notice = document.createElement('div');
+    notice.textContent = '✓ Copied to clipboard';
+    notice.style.position = 'fixed';
+    notice.style.right = '20px';
+    notice.style.bottom = '20px';
+    notice.style.background = 'var(--success)';
+    notice.style.color = 'white';
+    notice.style.padding = '8px 16px';
+    notice.style.borderRadius = '8px';
+    notice.style.fontWeight = '600';
+    notice.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+    notice.style.zIndex = '1000';
+    notice.style.animation = 'fadeIn 0.3s ease';
+    document.body.appendChild(notice);
+    setTimeout(()=>{
+      notice.style.animation = 'fadeIn 0.3s ease reverse';
+      setTimeout(()=>notice.remove(), 300);
+    }, 2000);
+  }
+  catch(e){
+    const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); alert('Copied (fallback).') }catch(e){ prompt('Copy manually:', text) }
+    ta.remove();
+  }
+}
+
+/* Bind quick copy buttons */
+$('#copyScenario')?.addEventListener('click', ()=> copyText($('#scenario').value || ''));
+$('#copyInitial')?.addEventListener('click', ()=> copyText($('#initial').value || ''));
+$('#copyExamples')?.addEventListener('click', ()=> copyText($('#examples').value || ''));
+$('#copyScenario2')?.addEventListener('click', ()=> copyText($('#scenario').value || ''));
+$('#copyInitial2')?.addEventListener('click', ()=> copyText($('#initial').value || ''));
+$('#copyExamples2')?.addEventListener('click', ()=> copyText($('#examples').value || ''));
+
+/* ---------- PREVIEW / BUILD TEMPLATE ---------- */
+function buildFullTemplate(){
+  const npcsRaw = $('#npcsInput')?.value.trim() || '';
+  let npcsSection = '';
+  if(npcsRaw){
+    npcsSection = '<npcs>\\n';
+    const lines = npcsRaw.split('\\n').map(s=>s.trim()).filter(Boolean);
+    lines.forEach(line=> npcsSection += line + '\\n');
+    npcsSection += '</npcs>\\n\\n';
+  }
+
+  let tagName = ($('#fullName')?.value || '').trim();
+  if(!tagName) tagName = 'character_name';
+  else tagName = tagName.replace(/\\s+/g,'_').replace(/[^a-zA-Z0-9_-]/g,'').toLowerCase();
+
+  const core = `<${tagName}>
+Full Name: ${$('#fullName')?.value || ''}
+Aliases: ${$('#aliases')?.value || ''}
+Species: ${$('#species')?.value || ''}
+Nationality: 
+Ethnicity: 
+Age: ${$('#age')?.value || ''}
+Occupation/Role: ${$('#role')?.value || ''}
+Appearance: ${$('#appearance')?.value || ''}
+Scent: ${$('#scent')?.value || ''}
+Clothing: ${$('#clothing')?.value || ''}
+
+[Backstory:
+${$('#backstory')?.value || ''}
+]
+Current Residence: ${$('#residence')?.value || ''}
+
+[Relationships:
+${$('#relationships')?.value || ''}
+]
+[Personality
+Traits:
+${$('#traits')?.value || ''}
+Likes:
+${$('#likes')?.value || ''}
+Dislikes:
+${$('#dislikes')?.value || ''}
+Insecurities:
+${$('#insecurities')?.value || ''}
+Physical behavour: 
+${$('#physicalBehaviour')?.value || ''}
+Opinion:
+${$('#opinion')?.value || ''}
+]
+[Intimacy
+Turn-ons:
+${$('#turnOns')?.value || ''}
+During Sex:
+${$('#duringSex')?.value || ''}
+]
+[Dialogue
+[These are merely examples of how ${($('#fullName')?.value || 'CHARACTER NAME').toUpperCase()} may speak and should NOT be used verbatim.]
+Greeting Example: ${$('#greetingExample')?.value || ''}
+Surprised: ${$('#surprised')?.value || ''}
+Stressed: ${$('#stressed')?.value || ''}
+Memory: ${$('#memory')?.value || ''}
+Opinion: ${$('#opinionDialogue')?.value || ''}
+]
+[Notes
+${$('#notes')?.value || ''}
+]
+</${tagName}>`;
+
+  return npcsSection + core;
+}
+
+function updatePreview(){
+  const text = buildFullTemplate();
+  $('#previewBox').textContent = text;
+  $('#tokenCounter').textContent = text.length + ' chars (approx)';
+  $('#traits') && ($('#traits').dispatchEvent(new Event('input')));
+}
+
+/* ---------- TRAITS: load JSON, render accordions, toggle behavior ---------- */
+const traitsContainer = $('#traitsContainer');
+const selectedTraits = new Set();
+
+function updateTraitsField(){
+  $('#traits').value = Array.from(selectedTraits).join(', ');
+  // autosave
+  localStorage.setItem('oc_traits', $('#traits').value);
+}
+
+function createTraitButton(name, color){
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'trait-btn';
+  btn.textContent = name;
+  btn.dataset.trait = name;
+  // store palette color on the element for potential use
+  btn.dataset.color = color || '';
+  // initial unselected appearance uses CSS var (--btn-unselected-bg)
+  // Toggle logic:
+  btn.addEventListener('click', ()=>{
+    if(selectedTraits.has(name)){
+      selectedTraits.delete(name);
+      btn.classList.remove('selected');
+      // restore unselected look (CSS handles it)
+    } else {
+      selectedTraits.add(name);
+      btn.classList.add('selected');
+    }
+    updateTraitsField();
+  });
+  return btn;
+}
+
+function renderTraitsFromJSON(data){
+  traitsContainer.innerHTML = '';
+  data.categories.forEach((cat, index)=>{
+    // category header (click to expand)
+    const header = document.createElement('div');
+    header.className = 'acc-head';
+    header.tabIndex = 0;
+    header.style.display = 'flex';
+    header.style.justifyContent = 'space-between';
+    header.style.alignItems = 'center';
+    header.style.width = '100%';
+    header.style.marginTop = '6px';
+    header.innerHTML = `<div style="font-weight:700;color:${cat.color}">${cat.name}</div><div class="tiny">expand</div>`;
+    traitsContainer.appendChild(header);
+
+    // body
+    const body = document.createElement('div');
+    body.className = 'acc-body';
+    body.style.padding = '10px 0';
+    body.style.display = 'none';
+    body.style.width = '100%';
+
+    // trait buttons
+    cat.traits.forEach(tr=>{
+      const b = createTraitButton(tr.name, cat.color);
+      body.appendChild(b);
+    });
+
+    traitsContainer.appendChild(body);
+
+    // header toggle
+    header.addEventListener('click', ()=>{
+      const open = body.style.display === 'block';
+      body.style.display = open ? 'none' : 'block';
+    });
+    header.addEventListener('keypress', (e)=>{ if(e.key==='Enter') header.click(); });
+  });
+
+  // restore selection from localStorage if present
+  const saved = localStorage.getItem('oc_traits') || '';
+  if(saved){
+    const list = saved.split(',').map(s=>s.trim()).filter(Boolean);
+    list.forEach(t=>{
+      selectedTraits.add(t);
+      // mark button
+      const btn = traitsContainer.querySelector(`[data-trait="${CSS.escape(t)}"]`);
+      if(btn) btn.classList.add('selected');
+    });
+    updateTraitsField();
+  }
+}
+
+/* fetch JSON */
+fetch('personality_traits.json')
+  .then(r=>{
+    if(!r.ok) throw new Error('Failed to load JSON');
+    return r.json();
+  })
+  .then(json=>{
+    renderTraitsFromJSON(json);
+  })
+  .catch(err=>{
+    traitsContainer.innerHTML = '<div class="tiny" style="color:crimson">Could not load personality_traits.json — put it in the same folder as this HTML.</div>';
+    console.error(err);
+  });
+
+/* ---------- update name uppercase in dialogue helper ---------- */
+const fullNameInput = $('#fullName');
+const nameUpperEl = $('#charNameUpper');
+if(fullNameInput && nameUpperEl){
+  fullNameInput.addEventListener('input', ()=>{
+    nameUpperEl.textContent = (fullNameInput.value || 'CHARACTER NAME').toUpperCase();
+  });
+}
+
+/* ---------- attach copy / save / reset / preview ---------- */
+$('#copyAll')?.addEventListener('click', ()=> copyText(buildFullTemplate()));
+$('#copyPersonality2')?.addEventListener('click', ()=> copyText($('#traits').value || ''));
+$('#saveBtn')?.addEventListener('click', ()=> { saveAll(); });
+
+$('#resetBtn').addEventListener('click', ()=>{
+  if(!confirm('Reset all fields? This will clear local storage for this page.')) return;
+  fields.forEach(f=> localStorage.removeItem('oc_'+f));
+  localStorage.removeItem('oc_traits');
+  location.reload();
+});
+
+/* copy other small ones */
+$('#copyScenario2')?.addEventListener('click', ()=> copyText($('#scenario').value || ''));
+$('#copyInitial2')?.addEventListener('click', ()=> copyText($('#initial').value || ''));
+$('#copyExamples2')?.addEventListener('click', ()=> copyText($('#examples').value || ''));
+
+/* autosave on inputs */
+fields.forEach(f=>{
+  const el = $('#'+f); if(!el) return;
+  el.addEventListener('input', ()=> {
+    localStorage.setItem('oc_'+f, el.value);
+    if(f==='traits') updatePreview();
+  });
+});
+
+/* load on start */
+loadAll();
+
+/* live preview update */
+function updatePreviewDebounced(){
+  clearTimeout(updatePreviewDebounced._t);
+  updatePreviewDebounced._t = setTimeout(updatePreview, 120);
+}
+$$('textarea, input').forEach(el => el.addEventListener('input', updatePreviewDebounced));
+
+/* initial small counters */
+updatePreview();
+
+/* keyboard shortcut save */
+window.addEventListener('keydown', (e)=>{
+  if((e.ctrlKey || e.metaKey) && e.key.toLowerCase()==='s'){
+    e.preventDefault();
+    saveAll();
+  }
+});
+
+/* Smooth scrolling for better UX */
+document.addEventListener('DOMContentLoaded', () => {
+  const scrollToEl = (el) => el.scrollIntoView({
+    behavior: 'smooth',
+    block: 'start'
+  });
+  
+  // Smooth scroll to sections when header is clicked
+  $$('.acc-head').forEach(header => {
+    header.addEventListener('click', () => {
+      setTimeout(() => {
+        scrollToEl(header);
+      }, 100);
+    });
+  });
+});
+</script>
 </body>
 </html>
